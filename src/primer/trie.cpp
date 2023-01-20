@@ -1,4 +1,6 @@
 #include "primer/trie.h"
+#include <cstddef>
+#include <memory>
 #include <string_view>
 #include "common/exception.h"
 
@@ -6,21 +8,44 @@ namespace bustub {
 
 template <class T>
 auto Trie::Get(std::string_view key) const -> const T * {
-  throw NotImplementedException("Trie::Get is not implemented.");
-
-  // You should walk through the trie to find the node corresponding to the key. If the node doesn't exist, return
-  // nullptr. After you find the node, you should use `dynamic_cast` to cast it to `const TrieNodeWithValue<T> *`. If
-  // dynamic_cast returns `nullptr`, it means the type of the value is mismatched, and you should return nullptr.
-  // Otherwise, return the value.
+  // Walk through the trie to find the node corresponding to the key
+  auto current_node = root_;
+  for (char c : key) {
+    if (!current_node->children_.count(c)) {
+      return nullptr;
+    }
+    current_node = current_node->children_.at(c);
+  }
+  // At end of the key, check if it is a value node
+  if (current_node && current_node->is_value_node_) {
+    auto node_with_val = dynamic_cast<const TrieNodeWithValue<T> *>(current_node.get());
+    return node_with_val ? node_with_val->value_.get() : nullptr;
+  }
+  // Nothing's found
+  return nullptr;
 }
 
+// Note that `T` might be a non-copyable type. Always use `std::move` when creating `shared_ptr` on that value.
+// You should walk through the trie and create new nodes if necessary. If the node corresponding to the key already
+// exists, you should create a new `TrieNodeWithValue`.
 template <class T>
 auto Trie::Put(std::string_view key, T value) const -> Trie {
-  // Note that `T` might be a non-copyable type. Always use `std::move` when creating `shared_ptr` on that value.
-  throw NotImplementedException("Trie::Put is not implemented.");
-
-  // You should walk through the trie and create new nodes if necessary. If the node corresponding to the key already
-  // exists, you should create a new `TrieNodeWithValue`.
+  // Walk through the trie to insert new key
+  auto new_root = std::make_shared<TrieNode>(TrieNode(root_->children_));
+  auto current_node = new_root;
+  for (char c : key) {
+    if (!current_node->children_.count(c)) {
+      current_node->children_.insert({c, std::make_shared<TrieNode>(TrieNode())});
+    }
+    current_node = current_node->children_.at(c);
+  }
+  // Insert value to the last node
+  auto node_with_val = dynamic_cast<TrieNodeWithValue<T> *>(current_node.get());
+  node_with_val->value_ = std::make_shared<T>(std::move(value));
+  node_with_val->is_value_node_ = true;
+  // With the new root, create a new Trie
+  Trie new_trie = Trie(new_root);
+  return new_trie;
 }
 
 auto Trie::Remove(std::string_view key) const -> Trie {
