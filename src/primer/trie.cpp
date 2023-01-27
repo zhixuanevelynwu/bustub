@@ -22,8 +22,7 @@ auto Trie::Get(std::string_view key) const -> const T * {
   }
   // At end of the key, check if it is a value node
   if (current_node && current_node->is_value_node_) {
-    const TrieNode *tmp = current_node.get();
-    auto node_with_val = dynamic_cast<const TrieNodeWithValue<T> *>(tmp);
+    auto node_with_val = dynamic_cast<const TrieNodeWithValue<T> *>(current_node.get());
     return node_with_val ? node_with_val->value_.get() : nullptr;
   }
   // Nothing's found
@@ -40,12 +39,13 @@ auto Trie::Put(std::string_view key, T value) const -> Trie {
   auto new_root_ptr = std::shared_ptr<TrieNode>(std::move(new_root));
   auto current_node = new_root_ptr;
   int len = key.size();
+  auto val_ptr = std::make_shared<T>(std::move(value));
   for (int i = 0; i < len; i++) {  // Walk through the trie to insert new key
     char c = key[i];
     if (!current_node->children_.count(c)) {  // Insert
       std::shared_ptr<TrieNode> tmp;
       if (i == len - 1) {
-        tmp = std::make_shared<TrieNode>(TrieNodeWithValue(std::make_shared<T>(std::move(value))));
+        tmp = std::make_shared<TrieNodeWithValue<T>>(val_ptr);
       } else {
         tmp = std::make_shared<TrieNode>(TrieNode());
       }
@@ -55,8 +55,8 @@ auto Trie::Put(std::string_view key, T value) const -> Trie {
       auto cloned_child = current_node->children_[c]->Clone();
       std::shared_ptr<TrieNode> cloned_child_ptr;
       if (i == len - 1) {  // If is the last char, create a node with value
-        auto tmp = TrieNodeWithValue(cloned_child->children_, std::make_shared<T>(std::move(value)));
-        cloned_child_ptr = std::make_shared<TrieNode>(tmp);
+        // auto tmp = TrieNodeWithValue(cloned_child->children_, val_ptr);
+        cloned_child_ptr = std::make_shared<TrieNodeWithValue<T>>(cloned_child->children_, val_ptr);
       } else {  // Otherwise, copy a trie node
         cloned_child_ptr = std::shared_ptr<TrieNode>(std::move(cloned_child));
       }
