@@ -26,14 +26,13 @@ namespace bustub {
 enum class AccessType { Unknown = 0, Get, Scan };
 
 class LRUKNode {
- private:
+ public:
   /** History of last seen K timestamps of this page. Least recent timestamp stored in front. */
   // Remove maybe_unused if you start using them. Feel free to change the member variables as you want.
-
-  [[maybe_unused]] std::list<size_t> history_;
-  [[maybe_unused]] size_t k_;
-  [[maybe_unused]] frame_id_t fid_;
-  [[maybe_unused]] bool is_evictable_{false};
+  std::list<size_t> history_;
+  size_t k_;
+  frame_id_t fid_;
+  bool is_evictable_{false};
 };
 
 /**
