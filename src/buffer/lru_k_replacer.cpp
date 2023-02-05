@@ -20,16 +20,18 @@ auto inf = std::numeric_limits<size_t>::max();
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 /**
- * @brief Evict the frame with largest backward k-distance compared to all other evictable frames being tracked by the
- * Replacer. Backward k-distance is computed as the difference in time between current timestamp and the timestamp of
- * kth previous access. Store the frame id in the output parameter and return True. If there are no evictable frames
- * return False.
- * When multiple frames have +inf backward k-distance, the replacer evicts the frame with the earliest overall timestamp
- * (i.e., the frame whose least-recent recorded access is the overall least recent access, overall, out of all frames).
+ * @brief Find the frame with largest backward k-distance and evict that frame. Only frames
+ * that are marked as 'evictable' are candidates for eviction.
  *
- * @param frame_id
- * @return true
- * @return false
+ * A frame with less than k historical references is given +inf as its backward k-distance.
+ * If multiple frames have inf backward k-distance, then evict frame with earliest timestamp
+ * based on LRU.
+ *
+ * Successful eviction of a frame should decrement the size of replacer and remove the frame's
+ * access history.
+ *
+ * @param[out] frame_id id of frame that is evicted.
+ * @return true if a frame is evicted successfully, false if no frames can be evicted.
  */
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   // Check if there's any frames to evict
@@ -59,11 +61,17 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       pair = std::make_shared<std::pair<size_t, LRUKNode>>(k_dist, node);
     }
   }
-  // Found the frame -> write down its id and evict it
+  // Found the frame
   if (pair != nullptr) {
+    // Remove the frame's access history
+    pair->second.history_.clear();
+    // Write down the frame id
     *frame_id = pair->second.fid_;
+    // Evict the frame
     node_store_.erase(*frame_id);
+    // Decrement replacer size
     replacer_size_--;
+    curr_size_--;
     return true;
   }
   // No evictable frame found
@@ -71,18 +79,96 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 }
 
 /**
- * @brief Record that given frame id is accessed at current timestamp. This method should be called after a page is
- * pinned in the BufferPoolManager.
+ * @brief Record the event that the given frame id is accessed at current timestamp.
+ * Create a new entry for access history if frame id has not been seen before.
  *
- * @param frame_id
- * @param access_type
+ * If frame id is invalid (ie. larger than replacer_size_), throw an exception. You can
+ * also use BUSTUB_ASSERT to abort the process if frame id is invalid.
+ *
+ * @param frame_id id of frame that received a new access.
+ * @param access_type type of access that was received. This parameter is only needed for
+ * leaderboard tests.
  */
-void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {}
+void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
+  BUSTUB_ASSERT((size_t)frame_id <= replacer_size_, "Invalid frame id");
+  // Find the current frame
+  auto pair = node_store_.find(frame_id);
+  BUSTUB_ASSERT(pair != node_store_.end(), "Frame does not exist");
+  // Update its history
+  pair->second.history_.emplace_back(current_timestamp_);
+  pair->second.k_++;
+}
 
-void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {}
+/**
+ * @brief Toggle whether a frame is evictable or non-evictable. This function also
+ * controls replacer's size. Note that size is equal to number of evictable entries.
+ *
+ * If a frame was previously evictable and is to be set to non-evictable, then size should
+ * decrement. If a frame was previously non-evictable and is to be set to evictable,
+ * then size should increment.
+ *
+ * If frame id is invalid, throw an exception or abort the process.
+ *
+ * For other scenarios, this function should terminate without modifying anything.
+ *
+ * @param frame_id id of frame whose 'evictable' status will be modified
+ * @param set_evictable whether the given frame is evictable or not
+ */
+void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
+  BUSTUB_ASSERT((size_t)frame_id <= replacer_size_, "Invalid frame id");
+  // Find the current frame
+  auto pair = node_store_.find(frame_id);
+  BUSTUB_ASSERT(pair != node_store_.end(), "Frame does not exist");
+  // Update replacer
+  if (pair->second.is_evictable_ && !set_evictable) {
+    replacer_size_--;
+  } else if (!pair->second.is_evictable_ && set_evictable) {
+    replacer_size_++;
+  }
+  // Toggle evictable
+  pair->second.is_evictable_ = set_evictable;
+}
 
-void LRUKReplacer::Remove(frame_id_t frame_id) {}
+/**
+ * @brief Remove an evictable frame from replacer, along with its access history.
+ * This function should also decrement replacer's size if removal is successful.
+ *
+ * Note that this is different from evicting a frame, which always remove the frame
+ * with largest backward k-distance. This function removes specified frame id,
+ * no matter what its backward k-distance is.
+ *
+ * If Remove is called on a non-evictable frame, throw an exception or abort the
+ * process.
+ *
+ * If specified frame is not found, directly return from this function.
+ *
+ * @param frame_id id of frame to be removed
+ */
+void LRUKReplacer::Remove(frame_id_t frame_id) {
+  BUSTUB_ASSERT((size_t)frame_id <= replacer_size_, "Invalid frame id");
+  // Find the current frame
+  auto pair = node_store_.find(frame_id);
+  // If frame not found, return directly
+  if (pair == node_store_.end()) {
+    return;
+  }
+  BUSTUB_ASSERT(pair->second.is_evictable_, "Frame is not evictable");
+  // Remove the frame's access history
+  pair->second.history_.clear();
+  // Evict the frame
+  node_store_.erase(pair->first);
+  // Decrement replacer size
+  replacer_size_--;
+  curr_size_--;
+}
 
-auto LRUKReplacer::Size() -> size_t { return 0; }
+/**
+ * TODO(P1): Add implementation
+ *
+ * @brief Return replacer's size, which tracks the number of evictable frames.
+ *
+ * @return size_t
+ */
+auto LRUKReplacer::Size() -> size_t { return replacer_size_; }
 
 }  // namespace bustub
