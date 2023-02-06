@@ -68,10 +68,9 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     // Write down the frame id
     *frame_id = pair->second.fid_;
     // Evict the frame
-    node_store_.erase(*frame_id);
+    // node_store_.erase(*frame_id);
     // Decrement replacer size
     replacer_size_--;
-    curr_size_--;
     return true;
   }
   // No evictable frame found
@@ -156,10 +155,9 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   // Remove the frame's access history
   pair->second.history_.clear();
   // Evict the frame
-  node_store_.erase(pair->first);
+  // node_store_.erase(pair->first);
   // Decrement replacer size
   replacer_size_--;
-  curr_size_--;
 }
 
 /**

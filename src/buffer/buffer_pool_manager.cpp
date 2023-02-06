@@ -11,7 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/buffer_pool_manager.h"
+#include <memory>
 
+#include "common/config.h"
 #include "common/exception.h"
 #include "common/macros.h"
 #include "storage/page/page_guard.h"
@@ -38,7 +40,60 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 
 BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
 
-auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * { return nullptr; }
+/**
+ * @brief Create a new page in the buffer pool. Set page_id to the new page's id, or nullptr if all frames
+ * are currently in use and not evictable (in another word, pinned).
+ *
+ * You should pick the replacement frame from either the free list or the replacer (always find from the free list
+ * first), and then call the AllocatePage() method to get a new page id. If the replacement frame has a dirty page,
+ * you should write it back to the disk first. You also need to reset the memory and metadata for the new page.
+ *
+ * Remember to "Pin" the frame by calling replacer.SetEvictable(frame_id, false)
+ * so that the replacer wouldn't evict the frame before the buffer pool manager "Unpin"s it.
+ * Also, remember to record the access history of the frame in the replacer for the lru-k algorithm to work.
+ *
+ * @param[out] page_id id of created page
+ * @return nullptr if no new pages could be created, otherwise pointer to new page
+ */
+auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
+  // Check if there's an available frame for the new page
+  if (replacer_->Size() == 0) {
+    return nullptr;
+  }
+  // Pick replacement frame
+  // First check if there's any free frames to use
+  frame_id_t frame_id;
+  if (!free_list_.empty()) {
+    // Use the first frame in the list as replacement
+    frame_id = free_list_.front();
+    replacer_->SetEvictable(frame_id, false);
+  } else {
+    // No free frames left -> evict one from the pool
+    replacer_->Evict(&frame_id);
+    replacer_->SetEvictable(frame_id, false);
+    // Find the page we need to evict
+    page_id_t old_page_id;
+    for (auto const &[pid, fid] : page_table_) {
+      if (fid == frame_id) {
+        old_page_id = pid;
+      }
+    }
+    auto old_page = FetchPage(old_page_id);
+    // If the replacing page is dirty, write it back to the disk first
+    if (old_page->IsDirty()) {
+      disk_manager_->WritePage(old_page_id, old_page->data_);
+    }
+  }
+  // Create a new page in the buffer pool
+  auto new_page = std::make_shared<Page>();
+  new_page->page_id_ = AllocatePage();  // {{Acquire a latch here}}
+  // Update it in the page table
+  page_table_[new_page->page_id_] = frame_id;
+  // Record the access history of the frame and unpin the frame
+  replacer_->RecordAccess(frame_id);
+  replacer_->SetEvictable(frame_id, true);
+  return new_page.get();
+}
 
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
   return nullptr;
