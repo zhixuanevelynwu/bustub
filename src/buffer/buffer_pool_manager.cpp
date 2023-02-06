@@ -57,15 +57,77 @@ BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
  */
 auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // Check if there's an available frame for the new page
-  if (replacer_->Size() == 0) {
+  if (replacer_->Size() == 0 && free_list_.empty()) {
     return nullptr;
   }
   // Pick replacement frame
   // First check if there's any free frames to use
+  auto frame_id = PickReplacementFrame();
+  // Create a new page in the buffer pool
+  auto new_page = std::make_shared<Page>();
+  new_page->page_id_ = AllocatePage();  // {{Acquire a latch here}}
+  // Update it in the page table
+  page_table_[new_page->page_id_] = frame_id;
+  // Record the access history of the frame and unpin the frame
+  replacer_->RecordAccess(frame_id);
+  replacer_->SetEvictable(frame_id, true);
+  return new_page.get();
+}
+
+/**
+ * @brief Fetch the requested page from the buffer pool. Return nullptr if page_id needs to be fetched from the disk
+ * but all frames are currently in use and not evictable (in another word, pinned).
+ *
+ * First search for page_id in the buffer pool. If not found, pick a replacement frame from either the free list or
+ * the replacer (always find from the free list first), read the page from disk by calling disk_manager_->ReadPage(),
+ * and replace the old page in the frame. Similar to NewPage(), if the old page is dirty, you need to write it back
+ * to disk and update the metadata of the new page
+ *
+ * In addition, remember to disable eviction and record the access history of the frame like you did for NewPage().
+ *
+ * @param page_id id of page to be fetched
+ * @param access_type type of access to the page, only needed for leaderboard tests.
+ * @return nullptr if page_id cannot be fetched, otherwise pointer to the requested page
+ */
+auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
+  // Search for the page in buffer pool
+  for (size_t i = 0; i < pool_size_; i++) {
+    if (pages_[i].page_id_ == page_id) {
+      return &pages_[i];
+    }
+  }
+  // Page not in buffer -> pick a replacement frame
+  // Check if there's an available frame for the new page
+  if (replacer_->Size() == 0 && free_list_.empty()) {
+    return nullptr;
+  }
+  auto frame_id = PickReplacementFrame();
+  // Load the page into the buffer pool
+  auto new_page = std::make_shared<Page>();
+  new_page->page_id_ = page_id;  // {{Acquire a latch here}}
+  // Update it in the page table
+  page_table_[page_id] = frame_id;
+  // Write disk content to buffer pool
+  disk_manager_->ReadPage(new_page->page_id_, new_page->GetData());
+  // Record the access history of the frame and unpin the frame
+  replacer_->RecordAccess(frame_id);
+  replacer_->SetEvictable(frame_id, true);
+  return new_page.get();
+}
+
+/**
+ * @brief Pick the replacement frame from either the free list or the replacer (always find from the free list
+ * first). Write the replaced page to the disk if the page is dirty.
+ *
+ * @return frame_id  The replacement frame id
+ */
+auto BufferPoolManager::PickReplacementFrame() -> frame_id_t {
   frame_id_t frame_id;
   if (!free_list_.empty()) {
     // Use the first frame in the list as replacement
     frame_id = free_list_.front();
+    // Remove the frame from free list
+    free_list_.pop_front();
     replacer_->SetEvictable(frame_id, false);
   } else {
     // No free frames left -> evict one from the pool
@@ -78,25 +140,18 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
         old_page_id = pid;
       }
     }
-    auto old_page = FetchPage(old_page_id);
+    Page *old_page;
+    for (size_t i = 0; i < pool_size_; i++) {
+      if (pages_[i].page_id_ == old_page_id) {
+        old_page = &pages_[i];
+      }
+    }
     // If the replacing page is dirty, write it back to the disk first
     if (old_page->IsDirty()) {
       disk_manager_->WritePage(old_page_id, old_page->data_);
     }
   }
-  // Create a new page in the buffer pool
-  auto new_page = std::make_shared<Page>();
-  new_page->page_id_ = AllocatePage();  // {{Acquire a latch here}}
-  // Update it in the page table
-  page_table_[new_page->page_id_] = frame_id;
-  // Record the access history of the frame and unpin the frame
-  replacer_->RecordAccess(frame_id);
-  replacer_->SetEvictable(frame_id, true);
-  return new_page.get();
-}
-
-auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
-  return nullptr;
+  return frame_id;
 }
 
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {

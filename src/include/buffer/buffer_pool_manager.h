@@ -208,5 +208,12 @@ class BufferPoolManager {
   }
 
   // TODO(student): You may add additional private members and helper functions
+  /**
+   * @brief Pick the replacement frame from either the free list or the replacer (always find from the free list
+   * first). Write the replaced page to the disk if the page is dirty.
+   *
+   * @return frame_id  The replacement frame id
+   */
+  auto PickReplacementFrame() -> frame_id_t;
 };
 }  // namespace bustub

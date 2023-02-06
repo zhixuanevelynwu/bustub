@@ -34,7 +34,7 @@ LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_fra
  * @return true if a frame is evicted successfully, false if no frames can be evicted.
  */
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
-  // Check if there's any frames to evict
+  // Check if there're any frames available
   if (node_store_.empty() || replacer_size_ == 0) {
     return false;
   }
