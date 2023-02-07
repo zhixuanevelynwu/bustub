@@ -17,7 +17,16 @@ namespace bustub {
 
 auto inf = std::numeric_limits<size_t>::max();
 
-LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
+/**
+ * @brief a new LRUKReplacer.
+ * @param num_frames the maximum number of frames the LRUReplacer will be required to store
+ */
+LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {
+  // Initialize node store
+  for (size_t i = 0; i < num_frames; i++) {
+    node_store_[i] = LRUKNode();
+  }
+}
 
 /**
  * @brief Find the frame with largest backward k-distance and evict that frame. Only frames
@@ -67,8 +76,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
     pair->second.history_.clear();
     // Write down the frame id
     *frame_id = pair->second.fid_;
-    // Evict the frame
-    // node_store_.erase(*frame_id);
     // Decrement replacer size
     replacer_size_--;
     return true;
@@ -154,8 +161,6 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   BUSTUB_ASSERT(pair->second.is_evictable_, "Frame is not evictable");
   // Remove the frame's access history
   pair->second.history_.clear();
-  // Evict the frame
-  // node_store_.erase(pair->first);
   // Decrement replacer size
   replacer_size_--;
 }

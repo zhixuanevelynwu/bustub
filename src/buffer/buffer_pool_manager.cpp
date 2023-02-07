@@ -64,14 +64,14 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // First check if there's any free frames to use
   auto frame_id = PickReplacementFrame();
   // Create a new page in the buffer pool
-  auto new_page = std::make_shared<Page>();
-  new_page->page_id_ = AllocatePage();  // {{Acquire a latch here}}
+  pages_[frame_id].ResetMemory();
+  *page_id = AllocatePage();
+  pages_[frame_id].page_id_ = *page_id;  // {{Acquire a latch here}}
   // Update it in the page table
-  page_table_[new_page->page_id_] = frame_id;
-  // Record the access history of the frame
+  page_table_[*page_id] = frame_id;
+  // Record the access history
   replacer_->RecordAccess(frame_id);
-  *page_id = new_page->page_id_;
-  return new_page.get();
+  return &pages_[frame_id];
 }
 
 /**
@@ -91,27 +91,28 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
  */
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
   // Search for the page in buffer pool
-  for (size_t i = 0; i < pool_size_; i++) {
-    if (pages_[i].page_id_ == page_id) {
-      return &pages_[i];
-    }
+  auto pair = page_table_.find(page_id);
+  if (pair != page_table_.end()) {
+    return &pages_[pair->second];
   }
   // If no free frame in buffer and no frame can be evicted
-  if (free_list_.empty() && replacer_->Size() == 0) {
+  if (free_list_.empty() && replacer_->Size() <= 0) {
     return nullptr;
   }
   // Page not in buffer -> pick a replacement frame
   auto frame_id = PickReplacementFrame();
-  // Load the page into the buffer pool
-  auto new_page = std::make_shared<Page>();
-  new_page->page_id_ = page_id;  // {{Acquire a latch here}}
-  // Update it in the page table
+  auto old_page_id = pages_[frame_id].page_id_;
+  // Find the old page and update its metadata
+  pages_[frame_id].ResetMemory();
+  pages_[frame_id].page_id_ = page_id;
+  // Update the new page in the page table
+  page_table_.erase(old_page_id);
   page_table_[page_id] = frame_id;
   // Write disk content to buffer pool
-  disk_manager_->ReadPage(new_page->page_id_, new_page->GetData());
+  disk_manager_->ReadPage(page_id, pages_[frame_id].GetData());
   // Record the access history of the frame
   replacer_->RecordAccess(frame_id);
-  return new_page.get();
+  return &pages_[frame_id];
 }
 
 /**
@@ -127,32 +128,98 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
  * @return false if the page is not in the page table or its pin count is <= 0 before this call, true otherwise
  */
 auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
-  // Find the page in the buffer pool
-  for (size_t i = 0; i < pool_size_; i++) {
-    if (pages_[i].page_id_ == page_id) {
-      // If the pin count is already 0, return false
-      if (pages_[i].pin_count_ <= 0) {
-        return false;
-      }
-      // Otherwise, decrement the page's pin count and set its dirty flag
-      pages_[i].pin_count_--;
-      pages_[i].is_dirty_ = is_dirty;
-      // If the pin count reaches 0, set the frame as evictable
-      if (pages_[i].pin_count_ == 0) {
-        replacer_->SetEvictable(page_table_[pages_[i].page_id_], true);
-      }
-      return true;
+  // Search for the page in buffer pool
+  auto pair = page_table_.find(page_id);
+  if (pair != page_table_.end()) {
+    auto frame_id = pair->second;
+    // If the pin count is already 0, return false
+    if (pages_[frame_id].pin_count_ <= 0) {
+      return false;
     }
+    // Otherwise, decrement the page's pin count and set its dirty flag
+    pages_[frame_id].pin_count_--;
+    pages_[frame_id].is_dirty_ = is_dirty;
+    // If the pin count reaches 0, set the frame as evictable
+    if (pages_[frame_id].pin_count_ == 0) {
+      replacer_->SetEvictable(frame_id, true);
+    }
+    return true;
   }
   // Page not in the buffer pool
   return false;
 }
 
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
+/**
+ * @brief Flush the target page to disk.
+ *
+ * Use the DiskManager::WritePage() method to flush a page to disk, REGARDLESS of the dirty flag.
+ * Unset the dirty flag of the page after flushing.
+ *
+ * @param page_id id of page to be flushed, cannot be INVALID_PAGE_ID
+ * @return false if the page could not be found in the page table, true otherwise
+ */
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
+  BUSTUB_ASSERT(page_id != INVALID_PAGE_ID, "Invalid page id");
+  // Find the page in the buffer pool
+  auto pair = page_table_.find(page_id);
+  if (pair != page_table_.end()) {
+    // Write to the disk then reset the dirty flag
+    auto frame_id = pair->second;
+    disk_manager_->WritePage(page_id, pages_[frame_id].data_);
+    pages_[frame_id].is_dirty_ = false;
+    return true;
+  }
+  // Page not found
+  return false;
+}
 
-void BufferPoolManager::FlushAllPages() {}
+/**
+ * @brief Flush all the pages in the buffer pool to disk.
+ */
+void BufferPoolManager::FlushAllPages() {
+  for (size_t i = 0; i < pool_size_; i++) {
+    if (pages_[i].page_id_ != INVALID_PAGE_ID) {
+      // Write to the disk then reset the dirty flag
+      disk_manager_->WritePage(pages_[i].page_id_, pages_[i].data_);
+      pages_[i].is_dirty_ = false;
+    }
+  }
+}
 
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
+/**
+ * @brief Delete a page from the buffer pool. If page_id is not in the buffer pool, do nothing and return true. If the
+ * page is pinned and cannot be deleted, return false immediately.
+ *
+ * After deleting the page from the page table, stop tracking the frame in the replacer and add the frame
+ * back to the free list. Also, reset the page's memory and metadata. Finally, you should call DeallocatePage() to
+ * imitate freeing the page on the disk.
+ *
+ * @param page_id id of page to be deleted
+ * @return false if the page exists but could not be deleted, true if the page didn't exist or deletion succeeded
+ */
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
+  // Find the page in the buffer pool
+  auto pair = page_table_.find(page_id);
+  if (pair != page_table_.end()) {
+    auto frame_id = pair->second;
+    // If the page is pinned, return false immediately
+    if (pages_[frame_id].pin_count_ > 0) {
+      return false;
+    }
+    // Delete the page from the page table
+    page_table_.erase(page_id);
+    // Stop traking the frame in the replacer and add the frame back to the free list
+    replacer_->Remove(frame_id);
+    free_list_.emplace_back(frame_id);
+    // Reset the page's memory and metadata
+    pages_[frame_id].ResetMemory();
+    // Free the page on the disk
+    DeallocatePage(page_id);
+    return true;
+  }
+  // Page not found -> do nothing and return true
+  return true;
+}
 
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
@@ -183,22 +250,9 @@ auto BufferPoolManager::PickReplacementFrame() -> frame_id_t {
     // No free frames left -> evict one from the pool
     replacer_->Evict(&frame_id);
     replacer_->SetEvictable(frame_id, false);
-    // Find the page we need to evict
-    page_id_t old_page_id;
-    for (auto const &[pid, fid] : page_table_) {
-      if (fid == frame_id) {
-        old_page_id = pid;
-      }
-    }
-    Page *old_page;
-    for (size_t i = 0; i < pool_size_; i++) {
-      if (pages_[i].page_id_ == old_page_id) {
-        old_page = &pages_[i];
-      }
-    }
     // If the replacing page is dirty, write it back to the disk first
-    if (old_page->IsDirty()) {
-      disk_manager_->WritePage(old_page_id, old_page->data_);
+    if (pages_[frame_id].IsDirty()) {
+      disk_manager_->WritePage(pages_[frame_id].page_id_, pages_[frame_id].data_);
     }
   }
   return frame_id;
