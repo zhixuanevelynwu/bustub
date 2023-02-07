@@ -47,7 +47,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   if (node_store_.empty() || replacer_size_ == 0) {
     return false;
   }
-  // Keep track of the frame with the argest backward k-distance
+  // Keep track of the frame with the largest backward k-distance
   auto pair = std::make_shared<std::pair<size_t, LRUKNode>>();
   // Walk through the node map to compute the backward k-distance of each node
   for (auto const &[id, node] : node_store_) {
@@ -65,15 +65,16 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       k_dist = current_timestamp_ - *iter;
     }
     // Update frame
-    if (pair == nullptr || (k_dist == pair->first && *(pair->second.history_.begin()) > *(node.history_.begin())) ||
-        pair->first < k_dist) {
-      pair = std::make_shared<std::pair<size_t, LRUKNode>>(k_dist, node);
+    if (pair->first < k_dist ||
+        (k_dist == pair->first && *(pair->second.history_.begin()) > *(node.history_.begin()))) {
+      pair->first = k_dist;
+      pair->second = node;
     }
   }
   // Found the frame
   if (pair != nullptr) {
     // Remove the frame's access history
-    pair->second.history_.clear();
+    pair->second.Reset();
     // Write down the frame id
     *frame_id = pair->second.fid_;
     // Decrement replacer size
@@ -160,7 +161,7 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   }
   BUSTUB_ASSERT(pair->second.is_evictable_, "Frame is not evictable");
   // Remove the frame's access history
-  pair->second.history_.clear();
+  pair->second.Reset();
   // Decrement replacer size
   replacer_size_--;
 }

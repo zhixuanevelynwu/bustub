@@ -33,6 +33,13 @@ class LRUKNode {
   size_t k_;
   frame_id_t fid_;
   bool is_evictable_{false};
+
+  /** Reset LRUKNode */
+  inline void Reset() {
+    history_.clear();
+    k_ = 0;
+    is_evictable_ = false;
+  }
 };
 
 /**
