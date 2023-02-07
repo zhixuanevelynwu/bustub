@@ -56,8 +56,8 @@ BufferPoolManager::~BufferPoolManager() { delete[] pages_; }
  * @return nullptr if no new pages could be created, otherwise pointer to new page
  */
 auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
-  // Check if there's an available frame for the new page
-  if (replacer_->Size() == 0 && free_list_.empty()) {
+  // If no free frame in buffer and no frame can be evicted
+  if (free_list_.empty() && replacer_->Size() == 0) {
     return nullptr;
   }
   // Pick replacement frame
@@ -68,9 +68,9 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   new_page->page_id_ = AllocatePage();  // {{Acquire a latch here}}
   // Update it in the page table
   page_table_[new_page->page_id_] = frame_id;
-  // Record the access history of the frame and unpin the frame
+  // Record the access history of the frame
   replacer_->RecordAccess(frame_id);
-  replacer_->SetEvictable(frame_id, true);
+  *page_id = new_page->page_id_;
   return new_page.get();
 }
 
@@ -96,11 +96,11 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
       return &pages_[i];
     }
   }
-  // Page not in buffer -> pick a replacement frame
-  // Check if there's an available frame for the new page
-  if (replacer_->Size() == 0 && free_list_.empty()) {
+  // If no free frame in buffer and no frame can be evicted
+  if (free_list_.empty() && replacer_->Size() == 0) {
     return nullptr;
   }
+  // Page not in buffer -> pick a replacement frame
   auto frame_id = PickReplacementFrame();
   // Load the page into the buffer pool
   auto new_page = std::make_shared<Page>();
@@ -109,12 +109,62 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   page_table_[page_id] = frame_id;
   // Write disk content to buffer pool
   disk_manager_->ReadPage(new_page->page_id_, new_page->GetData());
-  // Record the access history of the frame and unpin the frame
+  // Record the access history of the frame
   replacer_->RecordAccess(frame_id);
-  replacer_->SetEvictable(frame_id, true);
   return new_page.get();
 }
 
+/**
+ * @brief Unpin the target page from the buffer pool. If page_id is not in the buffer pool or its pin count is already
+ * 0, return false.
+ *
+ * Decrement the pin count of a page. If the pin count reaches 0, the frame should be evictable by the replacer.
+ * Also, set the dirty flag on the page to indicate if the page was modified.
+ *
+ * @param page_id id of page to be unpinned
+ * @param is_dirty true if the page should be marked as dirty, false otherwise
+ * @param access_type type of access to the page, only needed for leaderboard tests.
+ * @return false if the page is not in the page table or its pin count is <= 0 before this call, true otherwise
+ */
+auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
+  // Find the page in the buffer pool
+  for (size_t i = 0; i < pool_size_; i++) {
+    if (pages_[i].page_id_ == page_id) {
+      // If the pin count is already 0, return false
+      if (pages_[i].pin_count_ <= 0) {
+        return false;
+      }
+      // Otherwise, decrement the page's pin count and set its dirty flag
+      pages_[i].pin_count_--;
+      pages_[i].is_dirty_ = is_dirty;
+      // If the pin count reaches 0, set the frame as evictable
+      if (pages_[i].pin_count_ == 0) {
+        replacer_->SetEvictable(page_table_[pages_[i].page_id_], true);
+      }
+      return true;
+    }
+  }
+  // Page not in the buffer pool
+  return false;
+}
+
+auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
+
+void BufferPoolManager::FlushAllPages() {}
+
+auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
+
+auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
+
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+
+// TODO(student): You may add additional private members and helper functions
 /**
  * @brief Pick the replacement frame from either the free list or the replacer (always find from the free list
  * first). Write the replaced page to the disk if the page is dirty.
@@ -153,25 +203,5 @@ auto BufferPoolManager::PickReplacementFrame() -> frame_id_t {
   }
   return frame_id;
 }
-
-auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unused]] AccessType access_type) -> bool {
-  return false;
-}
-
-auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool { return false; }
-
-void BufferPoolManager::FlushAllPages() {}
-
-auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool { return false; }
-
-auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
-
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
-
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
-
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
-
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
 
 }  // namespace bustub
