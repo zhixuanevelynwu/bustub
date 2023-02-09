@@ -60,8 +60,9 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   auto frame_id = PickReplacementFrame();
   // Create a new page in the buffer pool
   pages_[frame_id].ResetMemory();
-  *page_id = AllocatePage();
-  pages_[frame_id].page_id_ = *page_id;  // {{Acquire a latch here}}
+  *page_id = AllocatePage();  // {{Acquire a latch here}}
+  pages_[frame_id].page_id_ = *page_id;
+  pages_[frame_id].pin_count_++;
   // Update it in the page table
   page_table_[*page_id] = frame_id;
   // Record the access history
@@ -103,6 +104,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   // Update the new page in the page table
   page_table_.erase(old_page_id);
   page_table_[page_id] = frame_id;
+  pages_[frame_id].pin_count_++;
   // Write disk content to buffer pool
   disk_manager_->ReadPage(page_id, pages_[frame_id].GetData());
   // Record the access history of the frame
@@ -111,7 +113,8 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
 }
 
 /**
- * @brief Unpin the target page from the buffer pool. If page_id is not in the buffer pool or its pin count is already
+ * @brief Unpin the target page from the buffer pool. If page_id is not in the buffer pool or its
+ *  count is already
  * 0, return false.
  *
  * Decrement the pin count of a page. If the pin count reaches 0, the frame should be evictable by the replacer.
@@ -249,6 +252,8 @@ auto BufferPoolManager::PickReplacementFrame() -> frame_id_t {
     if (pages_[frame_id].IsDirty()) {
       disk_manager_->WritePage(pages_[frame_id].page_id_, pages_[frame_id].data_);
     }
+    // Erase the old (page_id, frame_id) pair from page table
+    page_table_.erase(pages_[frame_id].page_id_);
   }
   return frame_id;
 }
