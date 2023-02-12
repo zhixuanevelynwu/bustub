@@ -61,7 +61,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // Create a new page in the buffer pool
   pages_[frame_id].ResetMemory();
   latch_.lock();
-  *page_id = AllocatePage();  // {{Acquire a latch here}}
+  *page_id = AllocatePage();
   latch_.unlock();
   pages_[frame_id].page_id_ = *page_id;
   pages_[frame_id].pin_count_++;
@@ -223,15 +223,53 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
   return true;
 }
 
+/**
+ * @brief Allocate a page on disk. Caller should acquire the latch before calling this function.
+ * @return the id of the allocated page
+ */
 auto BufferPoolManager::AllocatePage() -> page_id_t { return next_page_id_++; }
 
-auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard { return {this, nullptr}; }
+/**
+ * @brief PageGuard wrappers for FetchPage
+ *
+ * Functionality should be the same as FetchPage, except
+ * that, depending on the function called, a guard is returned.
+ * If FetchPageRead or FetchPageWrite is called, it is expected that
+ * the returned page already has a read or write latch held, respectively.
+ *
+ * @param page_id, the id of the page to fetch
+ * @return PageGuard holding the fetched page
+ */
+auto BufferPoolManager::FetchPageBasic(page_id_t page_id) -> BasicPageGuard {
+  // Return a basic page guard initialized by the fetched page
+  return {this, FetchPage(page_id)};
+}
 
-auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageRead(page_id_t page_id) -> ReadPageGuard {
+  auto page = FetchPage(page_id);
+  // Acquire the page read latch
+  page->RLatch();
+  return {this, page};
+}
 
-auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard { return {this, nullptr}; }
+auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
+  auto page = FetchPage(page_id);
+  // Acquire the page write latch
+  page->WLatch();
+  return {this, page};
+}
 
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, nullptr}; }
+/**
+ * @brief PageGuard wrapper for NewPage
+ *
+ * Functionality should be the same as NewPage, except that
+ * instead of returning a pointer to a page, you return a
+ * BasicPageGuard structure.
+ *
+ * @param[out] page_id, the id of the new page
+ * @return BasicPageGuard holding a new page
+ */
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, NewPage(page_id)}; }
 
 // TODO(student): You may add additional private members and helper functions
 /**

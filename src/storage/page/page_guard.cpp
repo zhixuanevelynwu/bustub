@@ -13,9 +13,11 @@ namespace bustub {
  * guards and have the pin count decrease by 2.
  */
 BasicPageGuard::BasicPageGuard(BasicPageGuard &&that) noexcept {
+  // Set this page guard the same as the provided page guard
   bpm_ = that.bpm_;
   page_ = that.page_;
   is_dirty_ = that.is_dirty_;
+  // The provided page guard becomes unusable
   that.bpm_ = nullptr;
   that.page_ = nullptr;
   that.is_dirty_ = false;
@@ -34,6 +36,7 @@ void BasicPageGuard::Drop() {
   if (bpm_ != nullptr && page_ != nullptr) {
     bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
   }
+  // The page guard becomes unusable
   bpm_ = nullptr;
   page_ = nullptr;
   is_dirty_ = false;
@@ -56,6 +59,7 @@ auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard
   bpm_ = that.bpm_;
   page_ = that.page_;
   is_dirty_ = that.is_dirty_;
+  // The original page guard becomes unusable
   that.bpm_ = nullptr;
   that.page_ = nullptr;
   that.is_dirty_ = false;
@@ -99,7 +103,18 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
  * However, you should think VERY carefully about in which order you
  * want to release these resources.
  */
-void ReadPageGuard::Drop() { guard_.Drop(); }
+void ReadPageGuard::Drop() {
+  // Tell the BPM that we are done using this page
+  if (guard_.bpm_ != nullptr && guard_.page_ != nullptr) {
+    guard_.bpm_->UnpinPage(guard_.page_->GetPageId(), guard_.is_dirty_);
+  }
+  // Unlatch the page
+  guard_.page_->RUnlatch();
+  // The page guard becomes unusable
+  guard_.bpm_ = nullptr;
+  guard_.page_ = nullptr;
+  guard_.is_dirty_ = false;
+}
 
 /**
  * @brief Destructor for ReadPageGuard
@@ -137,7 +152,18 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
  * However, you should think VERY carefully about in which order you
  * want to release these resources.
  */
-void WritePageGuard::Drop() { guard_.Drop(); }
+void WritePageGuard::Drop() {
+  // Tell the BPM that we are done using this page
+  if (guard_.bpm_ != nullptr && guard_.page_ != nullptr) {
+    guard_.bpm_->UnpinPage(guard_.page_->GetPageId(), guard_.is_dirty_);
+  }
+  // Unlatch the page
+  guard_.page_->WUnlatch();
+  // The page guard becomes unusable
+  guard_.bpm_ = nullptr;
+  guard_.page_ = nullptr;
+  guard_.is_dirty_ = false;
+}
 
 /**
  * @brief Destructor for WritePageGuard
