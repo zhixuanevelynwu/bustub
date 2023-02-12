@@ -60,7 +60,9 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   auto frame_id = PickReplacementFrame();
   // Create a new page in the buffer pool
   pages_[frame_id].ResetMemory();
+  latch_.lock();
   *page_id = AllocatePage();  // {{Acquire a latch here}}
+  latch_.unlock();
   pages_[frame_id].page_id_ = *page_id;
   pages_[frame_id].pin_count_++;
   // Update it in the page table
@@ -212,7 +214,9 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
     // Reset the page's memory and metadata
     pages_[frame_id].ResetMemory();
     // Free the page on the disk
+    latch_.lock();
     DeallocatePage(page_id);
+    latch_.unlock();
     return true;
   }
   // Page not found -> do nothing and return true

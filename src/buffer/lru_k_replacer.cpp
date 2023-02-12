@@ -103,10 +103,12 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
   auto pair = node_store_.find(frame_id);
   BUSTUB_ASSERT(pair != node_store_.end(), "Frame does not exist");
   // Update its history
+  latch_.lock();
   pair->second.history_.emplace_back(current_timestamp_);
   pair->second.k_++;
   // Increment current time (potentially needs concurrency protection)
   current_timestamp_++;
+  latch_.unlock();
 }
 
 /**
