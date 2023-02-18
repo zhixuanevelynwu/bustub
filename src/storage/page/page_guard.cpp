@@ -107,13 +107,13 @@ void ReadPageGuard::Drop() {
   // Tell the BPM that we are done using this page
   if (guard_.bpm_ != nullptr && guard_.page_ != nullptr) {
     guard_.bpm_->UnpinPage(guard_.page_->GetPageId(), guard_.is_dirty_);
+    // Unlatch the page
+    guard_.page_->RUnlatch();
+    // The page guard becomes unusable
+    guard_.bpm_ = nullptr;
+    guard_.page_ = nullptr;
+    guard_.is_dirty_ = false;
   }
-  // Unlatch the page
-  guard_.page_->RUnlatch();
-  // The page guard becomes unusable
-  guard_.bpm_ = nullptr;
-  guard_.page_ = nullptr;
-  guard_.is_dirty_ = false;
 }
 
 /**
@@ -156,13 +156,13 @@ void WritePageGuard::Drop() {
   // Tell the BPM that we are done using this page
   if (guard_.bpm_ != nullptr && guard_.page_ != nullptr) {
     guard_.bpm_->UnpinPage(guard_.page_->GetPageId(), guard_.is_dirty_);
+    // Unlatch the page
+    guard_.page_->WUnlatch();
+    // The page guard becomes unusable
+    guard_.bpm_ = nullptr;
+    guard_.page_ = nullptr;
+    guard_.is_dirty_ = false;
   }
-  // Unlatch the page
-  guard_.page_->WUnlatch();
-  // The page guard becomes unusable
-  guard_.bpm_ = nullptr;
-  guard_.page_ = nullptr;
-  guard_.is_dirty_ = false;
 }
 
 /**
