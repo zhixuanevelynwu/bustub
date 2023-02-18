@@ -74,12 +74,14 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   }
   // Found the frame
   if (pair != nullptr) {
+    latch_.lock();
     // Remove the frame's access history
     pair->second->Reset();
     // Write down the frame id
     *frame_id = pair->second->fid_;
     // Decrement replacer size
     curr_size_--;
+    latch_.unlock();
     return true;
   }
   // No evictable frame found
@@ -132,6 +134,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   auto pair = node_store_.find(frame_id);
   BUSTUB_ASSERT(pair != node_store_.end(), "Frame does not exist");
   // Update replacer
+  latch_.lock();
   if (pair->second.is_evictable_ && !set_evictable) {
     curr_size_--;
   } else if (!pair->second.is_evictable_ && set_evictable) {
@@ -139,6 +142,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   }
   // Toggle evictable
   pair->second.is_evictable_ = set_evictable;
+  latch_.unlock();
 }
 
 /**
@@ -165,10 +169,12 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
     return;
   }
   BUSTUB_ASSERT(pair->second.is_evictable_, "Frame is not evictable");
+  latch_.lock();
   // Remove the frame's access history
   pair->second.Reset();
   // Decrement replacer size
   curr_size_--;
+  latch_.unlock();
 }
 
 /**
