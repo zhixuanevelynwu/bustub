@@ -20,6 +20,27 @@
 
 namespace bustub {
 
+// Check for memory leak when fetching pages
+TEST(BufferPoolManagerTest, FetchTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 10;
+  const size_t k = 5;
+
+  std::random_device r;
+  std::default_random_engine rng(r());
+  std::uniform_int_distribution<char> uniform_dist(0);
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager, k);
+
+  // Shutdown the disk manager and remove the temporary file we created.
+  disk_manager->ShutDown();
+  remove("test.db");
+
+  delete bpm;
+  delete disk_manager;
+}
+
 // NOLINTNEXTLINE
 // Check whether pages containing terminal characters can be recovered
 TEST(BufferPoolManagerTest, BinaryDataTest) {
