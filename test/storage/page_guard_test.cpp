@@ -22,6 +22,56 @@
 
 namespace bustub {
 
+TEST(PageGuardTest, RLatchTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 5;
+  const size_t k = 2;
+
+  auto disk_manager = std::make_shared<DiskManagerUnlimitedMemory>();
+  auto bpm = std::make_shared<BufferPoolManager>(buffer_pool_size, disk_manager.get(), k);
+
+  page_id_t pid1;
+  page_id_t pid2;
+  auto *p1 = bpm->NewPage(&pid1);
+  auto *p2 = bpm->NewPage(&pid2);
+  {
+    auto gp1 = bpm->FetchPageRead(pid1);
+    auto gp2 = bpm->FetchPageRead(pid2);
+    gp2 = std::move(gp1);
+  }
+  EXPECT_EQ(1, p1->GetPinCount());
+  EXPECT_EQ(1, p2->GetPinCount());
+  disk_manager->ShutDown();
+}
+
+TEST(PageGuardTest, WLatchTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 5;
+  const size_t k = 2;
+
+  auto disk_manager = std::make_shared<DiskManagerUnlimitedMemory>();
+  auto bpm = std::make_shared<BufferPoolManager>(buffer_pool_size, disk_manager.get(), k);
+
+  page_id_t pid1;
+  page_id_t pid2;
+  auto *p1 = bpm->NewPage(&pid1);
+  auto *p2 = bpm->NewPage(&pid2);
+  {
+    auto gp1 = bpm->FetchPageWrite(pid2);
+    gp1.Drop();
+    auto gp2 = bpm->FetchPageWrite(pid2);
+    gp2.Drop();
+    gp2.Drop();
+    gp2.Drop();
+    gp2.Drop();
+  }
+  { auto gp1 = bpm->FetchPageWrite(pid2); }
+  { auto gp2 = bpm->FetchPageWrite(pid2); }
+  EXPECT_EQ(1, p1->GetPinCount());
+  EXPECT_EQ(1, p2->GetPinCount());
+  disk_manager->ShutDown();
+}
+
 TEST(PageGuardTest, MultiPageMoveTest) {
   const std::string db_name = "test.db";
   const size_t buffer_pool_size = 5;
@@ -35,8 +85,8 @@ TEST(PageGuardTest, MultiPageMoveTest) {
   auto *p2 = bpm->NewPage(&pid2);
   auto *p3 = bpm->NewPage(&pid3);
   {
-    auto gp2 = BasicPageGuard(bpm.get(), p2);
-    auto gp3 = BasicPageGuard(bpm.get(), p3);
+    auto gp2 = ReadPageGuard(bpm.get(), p2);
+    auto gp3 = ReadPageGuard(bpm.get(), p3);
     gp3 = std::move(gp2);
     EXPECT_EQ(0, p3->GetPinCount());
     EXPECT_EQ(1, p2->GetPinCount());

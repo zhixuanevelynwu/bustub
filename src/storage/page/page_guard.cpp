@@ -52,7 +52,6 @@ void BasicPageGuard::Drop() {
  * the purpose of a page guard.
  */
 auto BasicPageGuard::operator=(BasicPageGuard &&that) noexcept -> BasicPageGuard & {
-  // If already has a page being guarded, unpin that page first
   bpm_->UnpinPage(page_->GetPageId(), is_dirty_);
   bpm_ = that.bpm_;
   page_ = that.page_;
@@ -102,12 +101,11 @@ auto ReadPageGuard::operator=(ReadPageGuard &&that) noexcept -> ReadPageGuard & 
  * want to release these resources.
  */
 void ReadPageGuard::Drop() {
-  // Unlatch the page
-  if (guard_.page_ != nullptr) {
-    guard_.page_->RUnlatch();
-  }
-  // The page guard becomes unusable
+  auto p = guard_.page_;
   guard_.Drop();
+  if (p != nullptr) {
+    p->RUnlatch();
+  }
 }
 
 /**
@@ -147,12 +145,10 @@ auto WritePageGuard::operator=(WritePageGuard &&that) noexcept -> WritePageGuard
  * want to release these resources.
  */
 void WritePageGuard::Drop() {
-  // Unlatch the page
-  if (guard_.page_ != nullptr) {
-    guard_.page_->WUnlatch();
+  auto p = guard_.page_;
+  if (p != nullptr) {
+    p->WUnlatch();
   }
-  // The page guard becomes unusable
-  guard_.Drop();
 }
 
 /**
