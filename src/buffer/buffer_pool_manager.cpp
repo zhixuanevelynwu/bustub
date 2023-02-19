@@ -143,7 +143,9 @@ auto BufferPoolManager::UnpinPage(page_id_t page_id, bool is_dirty, [[maybe_unus
     }
     // Otherwise, decrement the page's pin count and set its dirty flag
     pages_[frame_id].pin_count_--;
-    pages_[frame_id].is_dirty_ = is_dirty;
+    if (is_dirty) {
+      pages_[frame_id].is_dirty_ = is_dirty;
+    }
     // If the pin count reaches 0, set the frame as evictable
     if (pages_[frame_id].pin_count_ == 0) {
       replacer_->SetEvictable(frame_id, true);
@@ -168,14 +170,12 @@ auto BufferPoolManager::FlushPage(page_id_t page_id) -> bool {
   BUSTUB_ASSERT(page_id != INVALID_PAGE_ID, "Invalid page id");
   // Find the page in the buffer pool
   auto pair = page_table_.find(page_id);
+  auto frame_id = pair->second;
   if (pair != page_table_.end()) {
-    // Write to the disk then reset the dirty flag
-    auto frame_id = pair->second;
     disk_manager_->WritePage(page_id, pages_[frame_id].data_);
     pages_[frame_id].is_dirty_ = false;
     return true;
   }
-  // Page not found
   return false;
 }
 
@@ -186,7 +186,6 @@ void BufferPoolManager::FlushAllPages() {
   std::scoped_lock<std::mutex> lock(latch_);
   for (size_t i = 0; i < pool_size_; i++) {
     if (pages_[i].page_id_ != INVALID_PAGE_ID) {
-      // Write to the disk then reset the dirty flag
       disk_manager_->WritePage(pages_[i].page_id_, pages_[i].data_);
       pages_[i].is_dirty_ = false;
     }
@@ -220,8 +219,10 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
     replacer_->Remove(frame_id);
     free_list_.emplace_back(frame_id);
     // Reset the page's memory and metadata
+    pages_[frame_id].pin_count_ = 0;
+    pages_[frame_id].is_dirty_ = false;
+    pages_[frame_id].page_id_ = INVALID_PAGE_ID;
     pages_[frame_id].ResetMemory();
-    // Free the page on the disk
     DeallocatePage(page_id);
     return true;
   }
