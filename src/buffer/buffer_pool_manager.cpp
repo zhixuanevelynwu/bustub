@@ -88,10 +88,12 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
  */
 auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType access_type) -> Page * {
   std::scoped_lock<std::mutex> lock(latch_);
-  // Search for the page in buffer pool
   auto pair = page_table_.find(page_id);
+  // Found page in the buffer pool
   if (pair != page_table_.end()) {
     pages_[pair->second].pin_count_++;
+    replacer_->RecordAccess(pair->second);
+    replacer_->SetEvictable(pair->second, false);
     return &pages_[pair->second];
   }
   // If no free frame in buffer and no frame can be evicted
@@ -112,6 +114,7 @@ auto BufferPoolManager::FetchPage(page_id_t page_id, [[maybe_unused]] AccessType
   disk_manager_->ReadPage(page_id, pages_[frame_id].GetData());
   // Record the access history of the frame
   replacer_->RecordAccess(frame_id);
+  replacer_->SetEvictable(frame_id, false);
   return &pages_[frame_id];
 }
 
