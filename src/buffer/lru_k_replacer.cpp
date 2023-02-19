@@ -53,7 +53,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   auto pair = std::make_shared<std::pair<size_t, LRUKNode *>>(-1, nullptr);
   // Walk through the node map to compute the backward k-distance of each node
   for (auto &[id, node] : node_store_) {
-    // Only look at evictable frames
     if (!node.is_evictable_) {
       continue;
     }
@@ -75,11 +74,8 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   }
   // Found the frame
   if (pair != nullptr) {
-    // Remove the frame's access history
     pair->second->Reset();
-    // Write down the frame id
     *frame_id = pair->second->fid_;
-    // Decrement replacer size
     curr_size_--;
     return true;
   }
@@ -101,12 +97,11 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   std::scoped_lock<std::mutex> lock(latch_);
   BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
-  // Find the current frame
+  // Find the current frame and update its history
   auto pair = node_store_.find(frame_id);
-  // Update its history
+  BUSTUB_ASSERT(pair->second.k_ == 0, "Frame not found");
   pair->second.history_.emplace_back(current_timestamp_);
   pair->second.k_++;
-  // Increment current time (potentially needs concurrency protection)
   current_timestamp_++;
 }
 
@@ -128,15 +123,16 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::scoped_lock<std::mutex> lock(latch_);
   BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
-  // Find the current frame
+  // Find and update the frame
   auto pair = node_store_.find(frame_id);
-  // Update replacer
+  if (pair->second.k_ == 0) {
+    return;  // Node not initialized -> not found
+  }
   if (pair->second.is_evictable_ && !set_evictable) {
     curr_size_--;
   } else if (!pair->second.is_evictable_ && set_evictable) {
     curr_size_++;
   }
-  // Toggle evictable
   pair->second.is_evictable_ = set_evictable;
 }
 
@@ -160,9 +156,9 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find the current frame
   auto pair = node_store_.find(frame_id);
-  // If frame not found, return directly
-  if (pair == node_store_.end()) {
-    return;
+  // If specified frame is not found, directly return from this function.
+  if (pair->second.k_ == 0) {
+    return;  // Node not initialized -> not found
   }
   BUSTUB_ASSERT(pair->second.is_evictable_, "Frame is not evictable");
   // Remove the frame's access history

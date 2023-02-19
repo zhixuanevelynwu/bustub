@@ -22,21 +22,6 @@
 
 namespace bustub {
 
-TEST(PageGuardTest, DISABLED_ConcurrentRW) {
-  const std::string db_name = "test.db";
-  const size_t buffer_pool_size = 5;
-  const size_t k = 2;
-
-  auto disk_manager = std::make_shared<DiskManagerUnlimitedMemory>();
-  auto bpm = std::make_shared<BufferPoolManager>(buffer_pool_size, disk_manager.get(), k);
-
-  auto read1 = bpm->FetchPageRead(2);
-  auto write1 = bpm->FetchPageWrite(2);  // Deadlock
-  read1.Drop();
-  write1.Drop();
-  disk_manager->ShutDown();
-}
-
 TEST(PageGuardTest, MultiPageMoveTest) {
   const std::string db_name = "test.db";
   const size_t buffer_pool_size = 5;
