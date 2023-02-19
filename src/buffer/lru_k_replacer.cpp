@@ -99,7 +99,6 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
   BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find the current frame and update its history
   auto pair = node_store_.find(frame_id);
-  BUSTUB_ASSERT(pair->second.k_ == 0, "Frame not found");
   pair->second.history_.emplace_back(current_timestamp_);
   pair->second.k_++;
   current_timestamp_++;
