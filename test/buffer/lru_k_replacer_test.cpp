@@ -16,6 +16,20 @@
 
 namespace bustub {
 
+TEST(LRUKReplacerTest, RemoveTest) {
+  LRUKReplacer lru_replacer(7, 2);
+  lru_replacer.RecordAccess(1);
+  lru_replacer.RecordAccess(2);
+  lru_replacer.RecordAccess(3);
+  lru_replacer.RecordAccess(4);
+  lru_replacer.RecordAccess(5);
+  lru_replacer.RecordAccess(6);
+  lru_replacer.SetEvictable(1, true);
+  ASSERT_EQ(1, lru_replacer.Size());
+  lru_replacer.Remove(1);
+  ASSERT_EQ(0, lru_replacer.Size());
+}
+
 TEST(LRUKReplacerTest, SampleTest) {
   LRUKReplacer lru_replacer(7, 2);
 

@@ -100,10 +100,9 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
  */
 void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType access_type) {
   std::scoped_lock<std::mutex> lock(latch_);
-  BUSTUB_ASSERT((size_t)frame_id <= replacer_size_, "Invalid frame id");
+  BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find the current frame
   auto pair = node_store_.find(frame_id);
-  BUSTUB_ASSERT(pair != node_store_.end(), "Frame does not exist");
   // Update its history
   pair->second.history_.emplace_back(current_timestamp_);
   pair->second.k_++;
@@ -128,10 +127,9 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
  */
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::scoped_lock<std::mutex> lock(latch_);
-  BUSTUB_ASSERT((size_t)frame_id <= replacer_size_, "Invalid frame id");
+  BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find the current frame
   auto pair = node_store_.find(frame_id);
-  BUSTUB_ASSERT(pair != node_store_.end(), "Frame does not exist");
   // Update replacer
   if (pair->second.is_evictable_ && !set_evictable) {
     curr_size_--;
@@ -159,7 +157,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
  */
 void LRUKReplacer::Remove(frame_id_t frame_id) {
   std::scoped_lock<std::mutex> lock(latch_);
-  BUSTUB_ASSERT((size_t)frame_id <= replacer_size_, "Invalid frame id");
+  BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find the current frame
   auto pair = node_store_.find(frame_id);
   // If frame not found, return directly
@@ -178,6 +176,9 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
  *
  * @return size_t
  */
-auto LRUKReplacer::Size() -> size_t { return curr_size_; }
+auto LRUKReplacer::Size() -> size_t {
+  std::scoped_lock<std::mutex> lock(latch_);
+  return curr_size_;
+}
 
 }  // namespace bustub
