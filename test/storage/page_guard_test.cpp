@@ -32,15 +32,21 @@ TEST(PageGuardTest, RLatchTest) {
 
   page_id_t pid1;
   page_id_t pid2;
-  auto *p1 = bpm->NewPage(&pid1);
-  auto *p2 = bpm->NewPage(&pid2);
-  {
-    auto gp1 = bpm->FetchPageRead(pid1);
-    auto gp2 = bpm->FetchPageRead(pid2);
-    gp2 = std::move(gp1);
-  }
-  EXPECT_EQ(1, p1->GetPinCount());
+  bpm->NewPage(&pid1);
+  auto p2 = bpm->NewPage(&pid2);
   EXPECT_EQ(1, p2->GetPinCount());
+  {
+    auto gp2 = bpm->FetchPageRead(pid2);
+    EXPECT_EQ(2, p2->GetPinCount());
+    auto gp3 = bpm->FetchPageRead(pid2);
+    EXPECT_EQ(3, p2->GetPinCount());
+    gp3 = std::move(gp2);
+    EXPECT_EQ(2, p2->GetPinCount());
+    gp2 = std::move(gp3);
+    EXPECT_EQ(2, p2->GetPinCount());
+    gp3 = std::move(gp2);
+    EXPECT_EQ(2, p2->GetPinCount());
+  }
   disk_manager->ShutDown();
 }
 
