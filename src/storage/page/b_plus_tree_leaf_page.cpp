@@ -30,6 +30,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(int max_size) {
   this->SetPageType(IndexPageType::LEAF_PAGE);
   this->SetSize(0);
   this->SetMaxSize(max_size);
+  next_page_id_ = INVALID_PAGE_ID;
 }
 
 /**
@@ -47,6 +48,39 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) { next_pa
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::KeyAt(int index) const -> KeyType { return array_[index].first; }
+
+/**
+ * @brief Get value at index
+ *
+ * @param index
+ * @return ValueType
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType { return array_[index].second; }
+
+/**
+ * @brief Insert a new element to the array. Shift all elements after index by 1. Before calling this function, it is
+ * the caller's job to figure out the correct index to maintain a sorted order. Increments size of the leaf by one on
+ * success.
+ *
+ * @param key
+ * @param value
+ * @param index
+ * @return true
+ * @return false  if leaf is full
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int index) -> bool {
+  if (GetMaxSize() <= GetSize()) {
+    return false;
+  }
+  for (int i = GetSize() - 1; i > index; --i) {
+    array_[i] = array_[i - 1];
+  }
+  array_[index] = MappingType(key, value);
+  IncreaseSize(1);
+  return true;
+}
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;
 template class BPlusTreeLeafPage<GenericKey<8>, RID, GenericComparator<8>>;

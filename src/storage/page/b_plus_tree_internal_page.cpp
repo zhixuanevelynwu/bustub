@@ -26,7 +26,7 @@ namespace bustub {
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(int max_size) {
   this->SetPageType(IndexPageType::INTERNAL_PAGE);
-  this->SetSize(0);
+  this->SetSize(sizeof(array_) / sizeof(array_[0]));
   this->SetMaxSize(max_size);
 }
 /*

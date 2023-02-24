@@ -17,16 +17,21 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, page_id_t header_page_id, BufferPool
       leaf_max_size_(leaf_max_size),
       internal_max_size_(internal_max_size),
       header_page_id_(header_page_id) {
-  WritePageGuard guard = bpm_->FetchPageWrite(header_page_id_);
-  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
-  root_page->root_page_id_ = INVALID_PAGE_ID;
+  // WritePageGuard guard = bpm_->FetchPageWrite(header_page_id_);
+  // auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  // root_page->root_page_id_ = INVALID_PAGE_ID;
+  SetRootPageId(INVALID_PAGE_ID);
 }
 
 /*
- * Helper function to decide whether current b+tree is empty
+ * Returns true if this B+ tree has no keys and values.
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
+auto BPLUSTREE_TYPE::IsEmpty() const -> bool {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreePage>();
+  return root_page->GetSize() == 0;
+}
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -37,10 +42,49 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return true; }
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn) -> bool {
-  // Declaration of context instance.
   Context ctx;
   (void)ctx;
-  return false;
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root = guard.AsMut<BPlusTreePage>();
+  auto res = GetValueRecurse(root, key, result, txn);
+  free(root);  // ?
+  return res;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::GetValueRecurse(const BPlusTreePage *root, const KeyType &key, std::vector<ValueType> *result,
+                                     Transaction *txn) -> bool {
+  if (root == nullptr) {
+    return false;
+  }
+  if (root->IsLeafPage()) {  // Traverse through leaf node until current.key > key
+    auto current = std::make_shared<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>(root);
+    for (int i = 1; i < current->GetSize(); i++) {
+      KeyType current_key = current->KeyAt(i);
+      if (comparator_(key, current_key) == 0) {
+        if (result) {
+          (*result)[0] = current->ValueAt(i);
+        }
+        return true;
+      }
+      if (comparator_(key, current_key) > 0) {
+        return false;
+      }
+    }
+    return false;
+  }
+  // Step to the correct leaf
+  auto current = std::make_shared<BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>>(root);
+  int index = 1;
+  for (index = 1; index < current->GetSize(); index++) {
+    KeyType current_key = current->KeyAt(index);
+    if (comparator_(key, current_key) < 0) {
+      break;
+    }
+  }
+  BasicPageGuard guard = bpm_->FetchPageBasic(current->ValueAt(index).GetPageId());
+  auto next = guard.AsMut<BPlusTreePage>();
+  return GetValueRecurse(next, key, result, txn);
 }
 
 /*****************************************************************************
@@ -55,10 +99,57 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
-  // Declaration of context instance.
   Context ctx;
   (void)ctx;
-  return false;
+  // No duplicates
+  if (GetValue(key, nullptr, txn)) {
+    return false;
+  }
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root = guard.AsMut<BPlusTreePage>();
+  if (root->GetSize() == 0) {
+    // start new tree, update root page id and insert
+    SetRootPageId(value.GetPageId());
+    auto leaf = std::make_shared<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>(root);
+    return leaf->InsertAt(key, value, 0);
+  }
+  auto res = InsertRecurse(root, nullptr, key, value, txn);
+  free(root);
+  return res;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertRecurse(BPlusTreePage *root, BPlusTreePage *parent, const KeyType &key,
+                                   const ValueType &value, Transaction *txn) -> bool {
+  if (root == nullptr) {
+    return false;
+  }
+  if (root->IsLeafPage()) {  // Traverse through leaf node and insert
+    auto leaf = std::make_shared<BPlusTreeLeafPage<KeyType, ValueType, KeyComparator>>(root);
+    if (leaf->GetMaxSize() > leaf->GetSize()) {  // Has enough space, insert and update size
+      int index = 1;
+      for (index = 1; index < leaf->GetSize(); index++) {
+        KeyType current_key = leaf->KeyAt(index);
+        if (comparator_(key, current_key) < 0) {  // insert here
+          break;
+        }
+      }
+      return leaf->InsertAt(key, value, index);
+    }
+    // Leaf is full. Redistribute entries evenly and copy up the middle key
+    
+    // Insert an entry pointing to L2 into the parent of L
+    return false;
+  }
+  // Step to the correct leaf
+  auto current = std::make_shared<BPlusTreeInternalPage<KeyType, ValueType, KeyComparator>>(root);
+  for (int i = 1; i < current->GetSize(); i++) {
+    KeyType current_key = current->KeyAt(i);
+    if (comparator_(key, current_key) < 0) {
+      break;
+    }
+  }
+  return InsertRecurse(current.get(), root, key, value, txn);
 }
 
 /*****************************************************************************
@@ -109,7 +200,18 @@ auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); 
  * @return Page id of the root of this tree
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t { return 0; }
+auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
+  BasicPageGuard guard = bpm_->FetchPageBasic(header_page_id_);
+  auto root_page = guard.AsMut<BPlusTreeHeaderPage>();
+  return root_page->root_page_id_;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::SetRootPageId(page_id_t page_id) {
+  WritePageGuard write_guard = bpm_->FetchPageWrite(header_page_id_);
+  auto root_page = write_guard.AsMut<BPlusTreeHeaderPage>();
+  root_page->root_page_id_ = page_id;
+}
 
 /*****************************************************************************
  * UTILITIES AND DEBUG
