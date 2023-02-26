@@ -87,6 +87,14 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto InsertAt(KeyType key, ValueType value, int index) -> bool;
 
   /**
+   * @brief Spill half keys to another node
+   *
+   * @param node2
+   * @return KeyType
+   */
+  auto Spill(BPlusTreeInternalPage *node2) -> KeyType;
+
+  /**
    * @brief For test only, return a string representing all keys in
    * this internal page, formatted as "(key1,key2,key3,...)"
    *

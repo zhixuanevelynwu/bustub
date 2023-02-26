@@ -67,6 +67,22 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int 
   return true;
 }
 
+/**
+ * @brief Spill half of what this page have to another page
+ *
+ * @return KeyType  the middle key
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Spill(BPlusTreeInternalPage *node2) -> KeyType {
+  int mid = GetSize() / 2;
+  auto mid_key = KeyAt(mid);
+  for (int i = mid; i < this->GetSize(); ++i) {
+    node2->InsertAt(KeyAt(i), ValueAt(i), i - mid);
+  }
+  this->SetSize(mid);
+  return mid_key;
+}
+
 // valuetype for internalNode should be page id_t
 template class BPlusTreeInternalPage<GenericKey<4>, page_id_t, GenericComparator<4>>;
 template class BPlusTreeInternalPage<GenericKey<8>, page_id_t, GenericComparator<8>>;

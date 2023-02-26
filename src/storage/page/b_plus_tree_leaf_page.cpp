@@ -81,19 +81,20 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int inde
 }
 
 /**
- * @brief Split the page evenly into L1, L2. Return the middle key.
+ * @brief Spill half of what this page have to another page
  *
- * @return BPlusTreePage*
+ * @return KeyType  the middle key
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Split(BPlusTreeLeafPage *leaf2) -> KeyType {
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Spill(BPlusTreeLeafPage *leaf2) -> KeyType {
   int mid = GetSize() / 2;
+  auto mid_key = KeyAt(mid);
   for (int i = mid; i < this->GetSize(); ++i) {
-    leaf2->InsertAt(array_[i].first, array_[i].second, i - mid);
+    leaf2->InsertAt(KeyAt(i), ValueAt(i), i - mid);
   }
   this->SetSize(mid);
   BUSTUB_ASSERT(leaf2->GetSize() == this->GetSize() - mid, "Debug: wrong L2 size");
-  return leaf2->KeyAt(0);
+  return mid_key;
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

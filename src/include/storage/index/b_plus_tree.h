@@ -75,7 +75,7 @@ class BPlusTree {
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
   auto InsertRecurse(BPlusTreePage *root, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
-      -> MappingType *;
+      -> std::pair<KeyType, page_id_t> *;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);

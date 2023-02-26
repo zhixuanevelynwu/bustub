@@ -73,12 +73,9 @@ auto BPLUSTREE_TYPE::GetValueRecurse(const BPlusTreePage *current, const KeyType
   }
   // Step to the correct leaf
   auto node = reinterpret_cast<const InternalPage *>(current);
-  int index;
-  for (index = 1; index < node->GetSize(); index++) {
-    KeyType current_key = node->KeyAt(index);
-    if (comparator_(key, current_key) < 0) {
-      break;
-    }
+  int index = 1;
+  while (comparator_(key, node->KeyAt(index)) > 0 && index < current->GetSize()) {
+    index++;
   }
   BasicPageGuard guard = bpm_->FetchPageBasic(node->ValueAt(index));
   auto next = guard.AsMut<BPlusTreePage>();
@@ -100,14 +97,15 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
   Context ctx;
   (void)ctx;
-  // No duplicates
+  // no duplicates
   if (GetValue(key, nullptr, txn)) {
     return false;
   }
-  // Find root node
+
+  // find root node
   auto root_id = GetRootPageId();
   if (root_id == INVALID_PAGE_ID) {
-    // start new tree, update root page id and insert
+    // start a new tree, update root page id and insert
     page_id_t leaf_pid;
     bpm_->NewPage(&leaf_pid);
     BasicPageGuard leaf_guard = bpm_->FetchPageBasic(leaf_pid);
@@ -116,40 +114,94 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     SetRootPageId(leaf_pid);
     return leaf->InsertAt(key, value, 0);
   }
-  // General case
+
+  // general case
   BasicPageGuard root_guard = bpm_->FetchPageBasic(root_id);
   auto root = root_guard.AsMut<BPlusTreePage>();
-  auto res = InsertRecurse(root, key, value, txn);
-  return res;
+  auto mid_pair = InsertRecurse(root, key, value, txn);
+  if (mid_pair) {
+    // need to change root
+    page_id_t root2_id;
+    bpm_->NewPage(&root2_id);
+    BasicPageGuard root2_guard = bpm_->FetchPageBasic(root2_id);
+    auto root2 = reinterpret_cast<InternalPage *>(root2_guard.AsMut<BPlusTreePage>());
+    root2->Init(internal_max_size_);
+    // insert at new root. the 0th key is invalid so I just put whatever
+    root2->InsertAt(mid_pair->first, root_id, 1);
+    root2->InsertAt(mid_pair->first, mid_pair->second, 1);
+    SetRootPageId(root2_id);
+  }
+  return true;
 }
 
+/**
+ * @brief Recursively insert a key/value pair to the tree. Returns nullptr on complete success. Returns the key/value
+ * pair of the internal node to add on overflow.
+ *
+ * @param current
+ * @param key
+ * @param value
+ * @param txn
+ * @return std::pair<KeyType, page_id_t>*
+ */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertRecurse(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn)
-    -> MappingType * {
+    -> std::pair<KeyType, page_id_t> * {
+  // leaf case
   if (current->IsLeafPage()) {
     // insert
     auto leaf = reinterpret_cast<LeafPage *>(current);
-    int index;
-    for (index = 0; index < current->GetSize(); ++index) {
-      if (comparator_(key, leaf->KeyAt(index)) <= 0) {
-        break;
-      }
+    int index = 0;
+    while (index < leaf->GetSize() && comparator_(key, leaf->KeyAt(index)) > 0) {
+      index++;
     }
     leaf->InsertAt(key, value, index);
     // do i overflow
     if (current->GetSize() > current->GetMaxSize()) {
-      // create l2
-      page_id_t l2_pid;
-      bpm_->NewPage(&l2_pid);
-      BasicPageGuard leaf_guard = bpm_->FetchPageBasic(l2_pid);
-      auto l2 = reinterpret_cast<LeafPage *>(leaf_guard.AsMut<BPlusTreePage>());
-      l2->Init(leaf_max_size_);
+      // create leaf2
+      page_id_t leaf2_pid;
+      bpm_->NewPage(&leaf2_pid);
+      BasicPageGuard leaf_guard = bpm_->FetchPageBasic(leaf2_pid);
+      auto leaf2 = reinterpret_cast<LeafPage *>(leaf_guard.AsMut<BPlusTreePage>());
+      leaf2->Init(leaf_max_size_);
       // share half of what i have to it
-      auto mid_key = leaf->Split(l2);
-      auto pair = std::make_shared<MappingType>(mid_key, l2_pid);
+      auto mid_key = leaf->Spill(leaf2);
+      auto pair = std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, leaf2_pid);
       return pair.get();
     }
     return nullptr;
+  }
+
+  // internal case
+  auto node = reinterpret_cast<InternalPage *>(current);
+  int index = 1;
+  while (comparator_(key, node->KeyAt(index)) > 0 && index < node->GetSize()) {
+    index++;
+  }
+  BasicPageGuard guard = bpm_->FetchPageBasic(node->ValueAt(index));
+  auto next = guard.AsMut<BPlusTreePage>();
+  auto mid_pair = InsertRecurse(next, key, value, txn);  // backtrack
+
+  // child overflow. insert new key
+  if (mid_pair != nullptr) {
+    index = 1;
+    while (comparator_(mid_pair->first, node->KeyAt(index)) > 0 && index < node->GetSize()) {
+      index++;
+    }
+    node->InsertAt(mid_pair->first, mid_pair->second, index);
+    // overflow?
+    if (node->GetSize() > node->GetMaxSize()) {
+      // create internal node2
+      page_id_t node2_pid;
+      bpm_->NewPage(&node2_pid);
+      BasicPageGuard node_guard = bpm_->FetchPageBasic(node2_pid);
+      auto node2 = reinterpret_cast<InternalPage *>(node_guard.AsMut<BPlusTreePage>());
+      node2->Init(internal_max_size_);
+      // share half of what i have to it
+      auto mid_key = node->Spill(node2);
+      auto pair = std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, node2_pid);
+      return pair.get();
+    }
   }
   return nullptr;
 }
