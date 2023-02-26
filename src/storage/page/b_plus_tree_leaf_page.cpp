@@ -72,7 +72,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType { return 
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int index) -> bool {
-  for (int i = GetSize() - 1; i > index; --i) {
+  for (int i = GetSize(); i > index; --i) {
     array_[i] = array_[i - 1];
   }
   array_[index] = MappingType(key, value);
@@ -86,14 +86,14 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int inde
  * @return KeyType  the middle key
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_LEAF_PAGE_TYPE::Spill(BPlusTreeLeafPage *leaf2) -> KeyType {
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2_id) -> KeyType {
   int mid = GetSize() / 2;
   auto mid_key = KeyAt(mid);
   for (int i = mid; i < this->GetSize(); ++i) {
     leaf2->InsertAt(KeyAt(i), ValueAt(i), i - mid);
   }
+  this->next_page_id_ = leaf2_id;
   this->SetSize(mid);
-  BUSTUB_ASSERT(leaf2->GetSize() == this->GetSize() - mid, "Debug: wrong L2 size");
   return mid_key;
 }
 
