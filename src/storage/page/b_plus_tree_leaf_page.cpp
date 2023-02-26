@@ -13,6 +13,7 @@
 
 #include "common/exception.h"
 #include "common/rid.h"
+#include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
@@ -71,15 +72,28 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::ValueAt(int index) const -> ValueType { return 
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_LEAF_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int index) -> bool {
-  if (GetMaxSize() <= GetSize()) {
-    return false;
-  }
   for (int i = GetSize() - 1; i > index; --i) {
     array_[i] = array_[i - 1];
   }
   array_[index] = MappingType(key, value);
   IncreaseSize(1);
   return true;
+}
+
+/**
+ * @brief Split the page evenly into L1, L2. Return the middle key.
+ *
+ * @return BPlusTreePage*
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_LEAF_PAGE_TYPE::Split(BPlusTreeLeafPage *leaf2) -> KeyType {
+  int mid = GetSize() / 2;
+  for (int i = mid; i < this->GetSize(); ++i) {
+    leaf2->InsertAt(array_[i].first, array_[i].second, i - mid);
+  }
+  this->SetSize(mid);
+  BUSTUB_ASSERT(leaf2->GetSize() == this->GetSize() - mid, "Debug: wrong L2 size");
+  return leaf2->KeyAt(0);
 }
 
 template class BPlusTreeLeafPage<GenericKey<4>, RID, GenericComparator<4>>;

@@ -74,8 +74,8 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
-  auto InsertRecurse(BPlusTreePage *root, BPlusTreePage *parent, const KeyType &key, const ValueType &value,
-                     Transaction *txn = nullptr) -> bool;
+  auto InsertRecurse(BPlusTreePage *root, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
+      -> MappingType *;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
@@ -88,6 +88,7 @@ class BPlusTree {
   // Return the page id of the root node
   auto GetRootPageId() -> page_id_t;
   void SetRootPageId(page_id_t page_id);
+  auto GetRoot() -> BPlusTreePage *;
 
   // Index iterator
   auto Begin() -> INDEXITERATOR_TYPE;

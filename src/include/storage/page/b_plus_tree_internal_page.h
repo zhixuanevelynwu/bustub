@@ -74,6 +74,19 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto ValueAt(int index) const -> ValueType;
 
   /**
+   * @brief Insert a new element to the array. Shift all elements after index by 1. Before calling this function, it is
+   * the caller's job to figure out the correct index to maintain a sorted order. Increments size of the leaf by one on
+   * success.
+   *
+   * @param key
+   * @param value
+   * @param index
+   * @return true
+   * @return false  if leaf is full
+   */
+  auto InsertAt(KeyType key, ValueType value, int index) -> bool;
+
+  /**
    * @brief For test only, return a string representing all keys in
    * this internal page, formatted as "(key1,key2,key3,...)"
    *
