@@ -90,7 +90,11 @@ class BPlusTree {
   // Return the page id of the root node
   auto GetRootPageId() -> page_id_t;
   void SetRootPageId(page_id_t page_id);
-  auto GetRoot() -> BPlusTreePage *;
+
+  // Get node helper functions
+  auto CreateLeafPage(page_id_t *leaf_pid) -> BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *;
+  auto CreateInternalPage(page_id_t *node_pid) -> BPlusTreePage *;
+  auto GetBPlusTreePage(page_id_t page_id) -> BPlusTreePage *;
 
   // Index iterator
   auto Begin() -> INDEXITERATOR_TYPE;

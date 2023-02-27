@@ -59,6 +59,8 @@ class BasicPageGuard {
    */
   ~BasicPageGuard();
 
+  auto ValidPage() -> bool { return page_ == nullptr; }
+
   auto PageId() -> page_id_t { return page_->GetPageId(); }
 
   auto GetData() -> const char * { return page_->GetData(); }
