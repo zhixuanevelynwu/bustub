@@ -59,7 +59,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const -> ValueType { ret
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertAt(KeyType key, ValueType value, int index) -> bool {
-  for (int i = GetSize() - 1; i > index; --i) {
+  for (int i = GetSize(); i > index; --i) {
     array_[i] = array_[i - 1];
   }
   array_[index] = MappingType(key, value);
