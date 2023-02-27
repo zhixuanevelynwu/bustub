@@ -76,7 +76,7 @@ INDEX_TEMPLATE_ARGUMENTS
 auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Spill(BPlusTreeInternalPage *node2) -> KeyType {
   int mid = GetSize() / 2;
   auto mid_key = KeyAt(mid);
-  for (int i = mid; i <= this->GetSize(); ++i) {
+  for (int i = mid; i < this->GetSize(); ++i) {
     node2->InsertAt(KeyAt(i), ValueAt(i), i - mid);
   }
   this->SetSize(mid);

@@ -73,7 +73,7 @@ auto BPLUSTREE_TYPE::GetValueRecurse(const BPlusTreePage *current, const KeyType
   // Step to the correct leaf
   auto node = reinterpret_cast<const InternalPage *>(current);
   int index = 0;
-  while (comparator_(key, node->KeyAt(index + 1)) > 0 && index < current->GetSize() - 1) {
+  while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
     index++;
   }
   BasicPageGuard guard = bpm_->FetchPageBasic(node->ValueAt(index));
@@ -130,7 +130,6 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     root2->InsertAt(mid_pair->first, mid_pair->second, 1);
     SetRootPageId(root2_id);
   }
-  DrawBPlusTree();
   return true;
 }
 
