@@ -49,7 +49,26 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   }
   auto root_pid = GetRootPageId();
   auto root = GetBPlusTreePage(root_pid);
-  return GetValueRecurse(root, key, result, txn);
+  auto current = root;
+  while (!current->IsLeafPage()) {
+    auto node = reinterpret_cast<const InternalPage *>(current);
+    int index = 0;
+    while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
+      index++;
+    }
+    current = GetBPlusTreePage(node->ValueAt(index));
+  }
+  auto leaf = reinterpret_cast<const LeafPage *>(current);
+  for (int i = 0; i < leaf->GetSize(); i++) {
+    auto current_key = leaf->KeyAt(i);
+    if (comparator_(key, current_key) == 0) {
+      if (result != nullptr) {
+        result->push_back(leaf->ValueAt(i));
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
