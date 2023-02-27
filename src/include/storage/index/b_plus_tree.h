@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <queue>
 #include <shared_mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/config.h"
@@ -74,7 +76,7 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
-  auto InsertRecurse(BPlusTreePage *root, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
+  auto InsertRecurse(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
       -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
 
   // Remove a key and its value from this B+ tree.
@@ -82,7 +84,7 @@ class BPlusTree {
 
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;
-  auto GetValueRecurse(const BPlusTreePage *root, const KeyType &key, std::vector<ValueType> *result,
+  auto GetValueRecurse(const BPlusTreePage *current, const KeyType &key, std::vector<ValueType> *result,
                        Transaction *txn = nullptr) -> bool;
 
   // Return the page id of the root node

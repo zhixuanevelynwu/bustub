@@ -60,7 +60,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto KeyAt(int index) const -> KeyType;
   auto ValueAt(int index) const -> ValueType;
   auto InsertAt(KeyType key, ValueType value, int index) -> bool;
-  auto Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf_id) -> KeyType;
+  auto Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2_id) -> KeyType;
 
   /**
    * @brief for test only return a string representing all keys in
