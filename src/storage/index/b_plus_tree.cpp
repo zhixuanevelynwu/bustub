@@ -50,7 +50,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   auto root_pid = GetRootPageId();
   auto root = GetBPlusTreePage(root_pid);
   auto current = root;
-  while (!current->IsLeafPage()) {
+  while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
     auto node = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
     while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {

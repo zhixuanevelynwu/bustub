@@ -54,7 +54,7 @@ TEST(BPlusTreeTests, GetValueTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  int buffer_pool_size = 50;
+  int buffer_pool_size = 10000;
   auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
@@ -68,28 +68,21 @@ TEST(BPlusTreeTests, GetValueTest) {
 
   std::random_device rd;
   std::mt19937 mt(rd());
-  std::uniform_real_distribution<double> dist(1.0, buffer_pool_size);
+  std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  keys.reserve(buffer_pool_size);
-  for (int i = 0; i < buffer_pool_size; i++) {
-    keys.push_back(i);
+  for (int i = buffer_pool_size; i > 0; i--) {
+    keys.push_back(dist(mt));
+    // keys.push_back(1);
   }
-
-  // for (int i = buffer_pool_size; i > 0; i--) {
-  // keys.push_back(dist(mt));
-  //   keys.push_back(1);
-  // }
-  // for (auto k : keys) {
-  //   std::cout << k << " ";
-  // }
-  // std::cout << std::endl;
+  for (auto k : keys) {
+    std::cout << k << " ";
+  }
+  std::cout << std::endl;
 
   // Search on an empty tree should return false
   index_key.SetFromInteger(0);
   EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
-  GenericKey<8> k0;
-  k0.SetFromInteger(0);
   // Insert everything
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
@@ -98,7 +91,6 @@ TEST(BPlusTreeTests, GetValueTest) {
     tree.Insert(index_key, rid, transaction);
     // Check if the key we just inserted is present in the tree
     EXPECT_EQ(tree.GetValue(index_key, nullptr), true);
-    EXPECT_EQ(tree.GetValue(k0, nullptr), true);
   }
 
   std::vector<RID> rids;
