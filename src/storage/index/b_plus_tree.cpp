@@ -55,7 +55,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValueRecurse(const BPlusTreePage *current, const KeyType &key, std::vector<ValueType> *result,
                                      Transaction *txn) -> bool {
-  if (current == nullptr) {
+  if (current == nullptr || current->GetPageType() == IndexPageType::INVALID_INDEX_PAGE) {
     return false;
   }
   if (current->IsLeafPage()) {
@@ -148,9 +148,8 @@ auto BPLUSTREE_TYPE::InsertRecurse(BPlusTreePage *current, const KeyType &key, c
       index++;
     }
     leaf->InsertAt(key, value, index);
-    // do i overflow
+    // split
     if (current->GetSize() > current->GetMaxSize()) {
-      // split
       page_id_t leaf2_pid;
       auto leaf2 = CreateLeafPage(&leaf2_pid);
       auto mid_key = leaf->Spill(leaf2, leaf2_pid);
@@ -168,7 +167,6 @@ auto BPLUSTREE_TYPE::InsertRecurse(BPlusTreePage *current, const KeyType &key, c
   }
   auto next = GetBPlusTreePage(node->ValueAt(index));
   auto mid_pair = InsertRecurse(next, key, value, txn);  // backtrack
-
   // child overflow. insert new key
   if (mid_pair != nullptr) {
     index = 1;
@@ -176,12 +174,10 @@ auto BPLUSTREE_TYPE::InsertRecurse(BPlusTreePage *current, const KeyType &key, c
       index++;
     }
     node->InsertAt(mid_pair->first, mid_pair->second, index);
-    // overflow?
+    // split
     if (node->GetSize() > node->GetMaxSize()) {
-      // create internal node2
       page_id_t node2_pid;
       auto node2 = reinterpret_cast<InternalPage *>(CreateInternalPage(&node2_pid));
-      // share half of what i have to it
       auto mid_key = node->Spill(node2);
       auto pair = std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, node2_pid);
       return pair;
@@ -241,7 +237,8 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetRootPageId() -> page_id_t {
   BasicPageGuard header_guard = bpm_->FetchPageBasic(header_page_id_);
   auto header_page = header_guard.AsMut<BPlusTreeHeaderPage>();
-  return header_page->root_page_id_;
+  auto root_pid = header_page->root_page_id_;
+  return root_pid;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -254,12 +251,14 @@ void BPLUSTREE_TYPE::SetRootPageId(page_id_t page_id) {
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetBPlusTreePage(page_id_t page_id) -> BPlusTreePage * {
   BasicPageGuard guard = bpm_->FetchPageBasic(page_id);
-  return guard.AsMut<BPlusTreePage>();
+  auto page = guard.AsMut<BPlusTreePage>();
+  return page;
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::CreateLeafPage(page_id_t *leaf_pid) -> BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> * {
   auto leaf_page = bpm_->NewPage(leaf_pid);
+  bpm_->UnpinPage(*leaf_pid, false);
   BUSTUB_ASSERT(leaf_page, "Failed to create new page");
   BasicPageGuard leaf_guard = bpm_->FetchPageBasic(*leaf_pid);
   auto leaf = reinterpret_cast<LeafPage *>(leaf_guard.AsMut<BPlusTreePage>());
@@ -270,6 +269,7 @@ auto BPLUSTREE_TYPE::CreateLeafPage(page_id_t *leaf_pid) -> BPlusTreeLeafPage<Ke
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::CreateInternalPage(page_id_t *node_pid) -> BPlusTreePage * {
   auto node_page = bpm_->NewPage(node_pid);
+  bpm_->UnpinPage(*node_pid, false);
   BUSTUB_ASSERT(node_page, "Failed to create new page");
   BasicPageGuard node_guard = bpm_->FetchPageBasic(*node_pid);
   auto node = reinterpret_cast<InternalPage *>(node_guard.AsMut<BPlusTreePage>());
