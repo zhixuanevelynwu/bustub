@@ -1,0 +1,548 @@
+> ctest . -R ^BPlusTreeTests.ScaleTest$ --no-tests=error --verbose
+UpdateCTestConfiguration  from :/autograder/source/bustub/build/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/autograder/source/bustub/build/DartConfiguration.tcl
+Test project /autograder/source/bustub/build
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 47
+    Start 47: BPlusTreeTests.ScaleTest
+
+47: Test command: /autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test "--gtest_filter=BPlusTreeTests.ScaleTest" "--gtest_also_run_disabled_tests" "--gtest_color=auto" "--gtest_output=xml:/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test.xml" "--gtest_catch_exceptions=0"
+47: Test timeout computed to be: 120
+47: Running main() from gmock_main.cc
+47: Note: Google Test filter = BPlusTreeTests.ScaleTest
+47: [==========] Running 1 test from 1 test suite.
+47: [----------] Global test environment set-up.
+47: [----------] 1 test from BPlusTreeTests
+47: [ RUN      ] BPlusTreeTests.ScaleTest
+47: /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:289: Failure
+47: Expected equality of these values:
+47:   rids.size()
+47:     Which is: 0
+47:   1
+47: [  FAILED  ] BPlusTreeTests.ScaleTest (1694 ms)
+47: [----------] 1 test from BPlusTreeTests (1694 ms total)
+47: 
+47: [----------] Global test environment tear-down
+47: [==========] 1 test from 1 test suite ran. (1694 ms total)
+47: [  PASSED  ] 0 tests.
+47: [  FAILED  ] 1 test, listed below:
+47: [  FAILED  ] BPlusTreeTests.ScaleTest
+47: 
+47:  1 FAILED TEST
+47: LLVMSymbolizer: error reading file: No such file or directory
+47: 
+47: =================================================================
+47: ==1271==ERROR: LeakSanitizer: detected memory leaks
+47: 
+47: Direct leak of 280 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c280ff in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:267:23
+47:     #2 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #3 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #4 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #5 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #6 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #7 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #8 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #9 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #10 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #11 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 239976 byte(s) in 9999 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbab84 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetRootPageId() /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:306:39
+47:     #11 0x55f4f2cb9887 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:124:19
+47:     #12 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #13 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #14 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #15 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #16 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #17 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #18 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #19 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #20 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #21 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #22 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 239976 byte(s) in 9999 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cb9474 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::IsEmpty() const /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:32:32
+47:     #11 0x55f4f2cba1f4 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetValue(bustub::GenericKey<8ul> const&, std::vector<bustub::RID, std::allocator<bustub::RID> >*, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:48:7
+47:     #12 0x55f4f2cb9830 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:120:7
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 239952 byte(s) in 9998 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbab84 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetRootPageId() /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:306:39
+47:     #11 0x55f4f2cba24b in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetValue(bustub::GenericKey<8ul> const&, std::vector<bustub::RID, std::allocator<bustub::RID> >*, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:51:19
+47:     #12 0x55f4f2cb9830 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:120:7
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 122880 byte(s) in 30 object(s) allocated from:
+47:     #0 0x55f4f2c1c9cd in operator new[](unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b9cd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c54090 in bustub::Page::Page() /autograder/source/bustub/src/include/storage/page/page.h:35:13
+47:     #2 0x55f4f2c50060 in bustub::BufferPoolManager::BufferPoolManager(unsigned long, bustub::DiskManager*, unsigned long, bustub::LogManager*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:27:12
+47:     #3 0x55f4f2c27f9d in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:255:19
+47:     #4 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #5 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #6 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #7 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #8 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #9 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #10 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #11 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #12 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #13 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 55872 byte(s) in 2328 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbb36a in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetBPlusTreePage(int) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:321:32
+47:     #11 0x55f4f2cbb9c9 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::InsertHelper(bustub::BPlusTreePage*, bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:154:15
+47:     #12 0x55f4f2cb9aeb in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:131:19
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 55800 byte(s) in 2325 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbb36a in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetBPlusTreePage(int) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:321:32
+47:     #11 0x55f4f2cba514 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetValue(bustub::GenericKey<8ul> const&, std::vector<bustub::RID, std::allocator<bustub::RID> >*, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:60:15
+47:     #12 0x55f4f2cb9830 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:120:7
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 17496 byte(s) in 729 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbb36a in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetBPlusTreePage(int) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:321:32
+47:     #11 0x55f4f2cb9a9b in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:130:15
+47:     #12 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #13 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #14 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #15 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #16 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #17 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #18 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #19 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #20 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #21 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #22 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 17496 byte(s) in 729 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c5160e in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:95:16
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbb36a in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetBPlusTreePage(int) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:321:32
+47:     #11 0x55f4f2cba274 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetValue(bustub::GenericKey<8ul> const&, std::vector<bustub::RID, std::allocator<bustub::RID> >*, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:52:15
+47:     #12 0x55f4f2cb9830 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:120:7
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 8192 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c9cd in operator new[](unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b9cd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x7f9be1328e43 in std::basic_filebuf<char, std::char_traits<char> >::_M_allocate_internal_buffer() (/lib/x86_64-linux-gnu/libstdc++.so.6+0x114e43) (BuildId: f57e02bfadacc0c923c82457d5e18e1830b5faea)
+47: 
+47: Indirect leak of 8192 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c9cd in operator new[](unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b9cd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x7f9be1328e43 in std::basic_filebuf<char, std::char_traits<char> >::_M_allocate_internal_buffer() (/lib/x86_64-linux-gnu/libstdc++.so.6+0x114e43) (BuildId: f57e02bfadacc0c923c82457d5e18e1830b5faea)
+47:     #2 0x7ffc70559617  ([stack]+0x1d617)
+47: 
+47: Indirect leak of 2408 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c9cd in operator new[](unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b9cd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c50003 in bustub::BufferPoolManager::BufferPoolManager(unsigned long, bustub::DiskManager*, unsigned long, bustub::LogManager*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:27:12
+47:     #2 0x55f4f2c27f9d in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:255:19
+47:     #3 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #4 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #5 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #6 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #7 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #8 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #9 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #10 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #11 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #12 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 1680 byte(s) in 30 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c61586 in __gnu_cxx::new_allocator<std::__detail::_Hash_node<std::pair<int const, bustub::LRUKNode>, false> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c61470 in std::allocator_traits<std::allocator<std::__detail::_Hash_node<std::pair<int const, bustub::LRUKNode>, false> > >::allocate(std::allocator<std::__detail::_Hash_node<std::pair<int const, bustub::LRUKNode>, false> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c61334 in std::__detail::_Hash_node<std::pair<int const, bustub::LRUKNode>, false>* std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, bustub::LRUKNode>, false> > >::_M_allocate_node<std::piecewise_construct_t const&, std::tuple<int&&>, std::tuple<> >(std::piecewise_construct_t const&, std::tuple<int&&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:1873:16
+47:     #4 0x55f4f2c60467 in std::_Hashtable<int, std::pair<int const, bustub::LRUKNode>, std::allocator<std::pair<int const, bustub::LRUKNode> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_Scoped_node::_Scoped_node<std::piecewise_construct_t const&, std::tuple<int&&>, std::tuple<> >(std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, bustub::LRUKNode>, false> > >*, std::piecewise_construct_t const&, std::tuple<int&&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable.h:304:19
+47:     #5 0x55f4f2c5ff56 in std::__detail::_Map_base<int, std::pair<int const, bustub::LRUKNode>, std::allocator<std::pair<int const, bustub::LRUKNode> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](int&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:734:42
+47:     #6 0x55f4f2c5e5fc in std::unordered_map<int, bustub::LRUKNode, std::hash<int>, std::equal_to<int>, std::allocator<std::pair<int const, bustub::LRUKNode> > >::operator[](int&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/unordered_map.h:984:16
+47:     #7 0x55f4f2c5c381 in bustub::LRUKReplacer::LRUKReplacer(unsigned long, unsigned long) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:27:5
+47:     #8 0x55f4f2c541cd in std::_MakeUniq<bustub::LRUKReplacer>::__single_object std::make_unique<bustub::LRUKReplacer, unsigned long&, unsigned long&>(unsigned long&, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/unique_ptr.h:962:34
+47:     #9 0x55f4f2c500d7 in bustub::BufferPoolManager::BufferPoolManager(unsigned long, bustub::DiskManager*, unsigned long, bustub::LogManager*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:28:15
+47:     #10 0x55f4f2c27f9d in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:255:19
+47:     #11 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #12 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #13 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #14 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #15 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #16 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #17 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #18 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #19 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #20 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 1192 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c27ea6 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:254:24
+47:     #2 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #3 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #4 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #5 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #6 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #7 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #8 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #9 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #10 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #11 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 600 byte(s) in 25 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/[...(truncated)...]:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c50952 in bustub::BufferPoolManager::NewPage(int*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:70:14
+47:     #9 0x55f4f2cbe648 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::CreateLeafPage(int*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:336:51
+47:     #10 0x55f4f2cbd23c in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::SplitLeaf(bustub::BPlusTreeLeafPage<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:243:16
+47:     #11 0x55f4f2cbbc34 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::InsertHelper(bustub::BPlusTreePage*, bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:160:21
+47:     #12 0x55f4f2cb9aeb in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:131:19
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 24 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c64b76 in __gnu_cxx::new_allocator<std::_List_node<unsigned long> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c64b00 in std::allocator_traits<std::allocator<std::_List_node<unsigned long> > >::allocate(std::allocator<std::_List_node<unsigned long> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c648d9 in std::__cxx11::_List_base<unsigned long, std::allocator<unsigned long> >::_M_get_node() /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:442:16
+47:     #4 0x55f4f2c64784 in std::_List_node<unsigned long>* std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_create_node<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:634:21
+47:     #5 0x55f4f2c64499 in void std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::_M_insert<unsigned long&>(std::_List_iterator<unsigned long>, unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1911:18
+47:     #6 0x55f4f2c5f3f2 in unsigned long& std::__cxx11::list<unsigned long, std::allocator<unsigned long> >::emplace_back<unsigned long&>(unsigned long&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/stl_list.h:1227:10
+47:     #7 0x55f4f2c5d667 in bustub::LRUKReplacer::RecordAccess(int, bustub::AccessType) /autograder/source/bustub/src/buffer/lru_k_replacer.cpp:102:25
+47:     #8 0x55f4f2c51cce in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:116:14
+47:     #9 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #10 0x55f4f2cbb36a in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetBPlusTreePage(int) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:321:32
+47:     #11 0x55f4f2cbb9c9 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::InsertHelper(bustub::BPlusTreePage*, bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:154:15
+47:     #12 0x55f4f2cb9aeb in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:131:19
+47:     #13 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #14 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #16 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #17 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #18 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #19 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #20 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #21 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #22 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #23 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 24 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c32e86 in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >*>(std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:596:16
+47:     #2 0x55f4f2c32e1c in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >*>(std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >*, std::integral_constant<bool, false>) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:607:4
+47:     #3 0x55f4f2c32de1 in std::__shared_ptr<std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >, (__gnu_cxx::_Lock_policy)2>::__shared_ptr<std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >, void>(std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:1099:17
+47:     #4 0x55f4f2c3020c in std::shared_ptr<std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > > >::shared_ptr<std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >, void>(std::unordered_map<unsigned int, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> >, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<std::pair<unsigned int const, std::unordered_set<bustub::RID, std::hash<bustub::RID>, std::equal_to<bustub::RID>, std::allocator<bustub::RID> > > > >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr.h:160:25
+47:     #5 0x55f4f2c2b840 in bustub::Transaction::Transaction(int, bustub::IsolationLevel) /autograder/source/bustub/src/include/concurrency/transaction.h:173:9
+47:     #6 0x55f4f2c28128 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:267:27
+47:     #7 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #8 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #9 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #10 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #11 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #12 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #13 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #14 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #15 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #16 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 24 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c32126 in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:596:16
+47:     #2 0x55f4f2c320bc in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*, std::integral_constant<bool, false>) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:607:4
+47:     #3 0x55f4f2c32081 in std::__shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, (__gnu_cxx::_Lock_policy)2>::__shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, void>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:1099:17
+47:     #4 0x55f4f2c301bc in std::shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> > >::shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, void>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr.h:160:25
+47:     #5 0x55f4f2c2b801 in bustub::Transaction::Transaction(int, bustub::IsolationLevel) /autograder/source/bustub/src/include/concurrency/transaction.h:172:9
+47:     #6 0x55f4f2c28128 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:267:27
+47:     #7 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #8 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #9 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #10 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #11 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #12 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #13 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #14 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #15 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #16 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 24 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c32126 in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:596:16
+47:     #2 0x55f4f2c320bc in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*, std::integral_constant<bool, false>) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:607:4
+47:     #3 0x55f4f2c32081 in std::__shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, (__gnu_cxx::_Lock_policy)2>::__shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, void>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:1099:17
+47:     #4 0x55f4f2c301bc in std::shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> > >::shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, void>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr.h:160:25
+47:     #5 0x55f4f2c2b7c2 in bustub::Transaction::Transaction(int, bustub::IsolationLevel) /autograder/source/bustub/src/include/concurrency/transaction.h:171:9
+47:     #6 0x55f4f2c28128 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:267:27
+47:     #7 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #8 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #9 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #10 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #11 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #12 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #13 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #14 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #15 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #16 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 24 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c32126 in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:596:16
+47:     #2 0x55f4f2c320bc in std::__shared_count<(__gnu_cxx::_Lock_policy)2>::__shared_count<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*, std::integral_constant<bool, false>) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:607:4
+47:     #3 0x55f4f2c32081 in std::__shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, (__gnu_cxx::_Lock_policy)2>::__shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, void>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr_base.h:1099:17
+47:     #4 0x55f4f2c301bc in std::shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> > >::shared_ptr<std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >, void>(std::unordered_set<unsigned int, std::hash<unsigned int>, std::equal_to<unsigned int>, std::allocator<unsigned int> >*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/shared_ptr.h:160:25
+47:     #5 0x55f4f2c2b783 in bustub::Transaction::Transaction(int, bustub::IsolationLevel) /autograder/source/bustub/src/include/concurrency/transaction.h:170:9
+47:     #6 0x55f4f2c28128 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:267:27
+47:     #7 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #8 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #9 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #10 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #11 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #12 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #13 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #14 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #15 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #16 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 16 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c59a79 in __gnu_cxx::new_allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c59960 in std::allocator_traits<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::allocate(std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c59804 in std::__detail::_Hash_node<std::pair<int const, int>, false>* std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::_M_allocate_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:1873:16
+47:     #4 0x55f4f2c58887 in std::_Hashtable<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_Scoped_node::_Scoped_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >*, std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable.h:304:19
+47:     #5 0x55f4f2c5838e in std::__detail::_Map_base<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:707:42
+47:     #6 0x55f4f2c5465c in std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, std::allocator<std::pair<int const, int> > >::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/unordered_map.h:980:16
+47:     #7 0x55f4f2c51a98 in bustub::BufferPoolManager::FetchPage(int, bustub::AccessType) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:111:3
+47:     #8 0x55f4f2c53caf in bustub::BufferPoolManager::FetchPageBasic(int) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:252:17
+47:     #9 0x55f4f2cbb36a in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::GetBPlusTreePage(int) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:321:32
+47:     #10 0x55f4f2cbb9c9 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::InsertHelper(bustub::BPlusTreePage*, bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:154:15
+47:     #11 0x55f4f2cb9aeb in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:131:19
+47:     #12 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #13 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #14 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #15 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #16 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #17 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #18 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #19 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #20 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #21 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #22 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 16 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c59a79 in __gnu_cxx::new_allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c59960 in std::allocator_traits<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::allocate(std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c59804 in std::__detail::_Hash_node<std::pair<int const, int>, false>* std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::_M_allocate_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:1873:16
+47:     #4 0x55f4f2c58887 in std::_Hashtable<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_Scoped_node::_Scoped_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >*, std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable.h:304:19
+47:     #5 0x55f4f2c5838e in std::__detail::_Map_base<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:707:42
+47:     #6 0x55f4f2c5465c in std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, std::allocator<std::pair<int const, int> > >::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/unordered_map.h:980:16
+47:     #7 0x55f4f2c508e7 in bustub::BufferPoolManager::NewPage(int*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:68:3
+47:     #8 0x55f4f2cbe648 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::CreateLeafPage(int*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:336:51
+47:     #9 0x55f4f2cbd23c in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::SplitLeaf(bustub::BPlusTreeLeafPage<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:243:16
+47:     #10 0x55f4f2cbbc34 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::InsertHelper(bustub::BPlusTreePage*, bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:160:21
+47:     #11 0x55f4f2cb9aeb in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:131:19
+47:     #12 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #13 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #14 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #15 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #16 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #17 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #18 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #19 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #20 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #21 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #22 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 16 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c59a79 in __gnu_cxx::new_allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c59960 in std::allocator_traits<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::allocate(std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c59804 in std::__detail::_Hash_node<std::pair<int const, int>, false>* std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::_M_allocate_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:1873:16
+47:     #4 0x55f4f2c58887 in std::_Hashtable<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_Scoped_node::_Scoped_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >*, std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable.h:304:19
+47:     #5 0x55f4f2c5838e in std::__detail::_Map_base<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:707:42
+47:     #6 0x55f4f2c5465c in std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, std::allocator<std::pair<int const, int> > >::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/unordered_map.h:980:16
+47:     #7 0x55f4f2c508e7 in bustub::BufferPoolManager::NewPage(int*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:68:3
+47:     #8 0x55f4f2cbe648 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::CreateLeafPage(int*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:336:51
+47:     #9 0x55f4f2cbafd2 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::StartNewTree(bustub::GenericKey<8ul>, bustub::RID) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:329:15
+47:     #10 0x55f4f2cb9a57 in bustub::BPlusTree<bustub::GenericKey<8ul>, bustub::RID, bustub::GenericComparator<8ul> >::Insert(bustub::GenericKey<8ul> const&, bustub::RID const&, bustub::Transaction*) /autograder/source/bustub/src/storage/index/b_plus_tree.cpp:126:5
+47:     #11 0x55f4f2c28705 in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:282:10
+47:     #12 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #13 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #14 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #15 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #16 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #17 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #18 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #19 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #20 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #21 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: Indirect leak of 16 byte(s) in 1 object(s) allocated from:
+47:     #0 0x55f4f2c1c8bd in operator new(unsigned long) (/autograder/source/bustub/build/test/grading_b_plus_tree_checkpoint_1_test+0x11b8bd) (BuildId: 35fb37ce13c0471a3c9643dbf1fec5f9dd8aec73)
+47:     #1 0x55f4f2c59a79 in __gnu_cxx::new_allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >::allocate(unsigned long, void const*) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/ext/new_allocator.h:127:27
+47:     #2 0x55f4f2c59960 in std::allocator_traits<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::allocate(std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> >&, unsigned long) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/alloc_traits.h:464:20
+47:     #3 0x55f4f2c59804 in std::__detail::_Hash_node<std::pair<int const, int>, false>* std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >::_M_allocate_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:1873:16
+47:     #4 0x55f4f2c58887 in std::_Hashtable<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true> >::_Scoped_node::_Scoped_node<std::piecewise_construct_t const&, std::tuple<int const&>, std::tuple<> >(std::__detail::_Hashtable_alloc<std::allocator<std::__detail::_Hash_node<std::pair<int const, int>, false> > >*, std::piecewise_construct_t const&, std::tuple<int const&>&&, std::tuple<>&&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable.h:304:19
+47:     #5 0x55f4f2c5838e in std::__detail::_Map_base<int, std::pair<int const, int>, std::allocator<std::pair<int const, int> >, std::__detail::_Select1st, std::equal_to<int>, std::hash<int>, std::__detail::_Mod_range_hashing, std::__detail::_Default_ranged_hash, std::__detail::_Prime_rehash_policy, std::__detail::_Hashtable_traits<false, false, true>, true>::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/hashtable_policy.h:707:42
+47:     #6 0x55f4f2c5465c in std::unordered_map<int, int, std::hash<int>, std::equal_to<int>, std::allocator<std::pair<int const, int> > >::operator[](int const&) /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../include/c++/11/bits/unordered_map.h:980:16
+47:     #7 0x55f4f2c508e7 in bustub::BufferPoolManager::NewPage(int*) /autograder/source/bustub/src/buffer/buffer_pool_manager.cpp:68:3
+47:     #8 0x55f4f2c27fce in bustub::BPlusTreeTests_ScaleTest_Test::TestBody() /autograder/source/bustub/test/storage/grading_b_plus_tree_checkpoint_1_test.cpp:259:28
+47:     #9 0x55f4f2dd6b0e in void testing::internal::HandleExceptionsInMethodIfSupported<testing::Test, void>(testing::Test*, void (testing::Test::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #10 0x55f4f2d8d28c in testing::Test::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2674:5
+47:     #11 0x55f4f2d8ef04 in testing::TestInfo::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2853:11
+47:     #12 0x55f4f2d905aa in testing::TestSuite::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:3012:30
+47:     #13 0x55f4f2db3a8c in testing::internal::UnitTestImpl::RunAllTests() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5870:44
+47:     #14 0x55f4f2ddccb3 in bool testing::internal::HandleExceptionsInMethodIfSupported<testing::internal::UnitTestImpl, bool>(testing::internal::UnitTestImpl*, bool (testing::internal::UnitTestImpl::*)(), char const*) /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:2657:12
+47:     #15 0x55f4f2db2dc2 in testing::UnitTest::Run() /autograder/source/bustub/third_party/googletest/googletest/src/gtest.cc:5444:10
+47:     #16 0x55f4f2e32e80 in RUN_ALL_TESTS() /autograder/source/bustub/third_party/googletest/googletest/include/gtest/gtest.h:2293:73
+47:     #17 0x55f4f2e32e11 in main /autograder/source/bustub/third_party/googletest/googlemock/src/gmock_main.cc:70:10
+47:     #18 0x7f9be0f0ed8f in __libc_start_call_main csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+47: 
+47: SUMMARY: AddressSanitizer: 1017656 byte(s) leaked in 36309 allocation(s).
+1/1 Test #47: BPlusTreeTests.ScaleTest .........***Failed    1.97 sec
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =   1.98 sec
+
+The following tests FAILED:
+	 47 - BPlusTreeTests.ScaleTest (Failed)
+Errors while running CTest
+Output from these tests are in: /autograder/source/bustub/build/Testing/Temporary/LastTest.log
+Use "--rerun-failed --output-on-failure" to re-run the failed cases verbosely.
+
+Program exited with 8 in 1.987s

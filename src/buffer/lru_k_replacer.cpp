@@ -21,13 +21,7 @@ auto inf = std::numeric_limits<size_t>::max();
  * @brief a new LRUKReplacer.
  * @param num_frames the maximum number of frames the LRUReplacer will be required to store
  */
-LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {
-  // Initialize node store
-  for (size_t i = 0; i < num_frames; i++) {
-    node_store_[i] = LRUKNode();
-    node_store_[i].fid_ = i;
-  }
-}
+LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 /**
  * @brief Find the frame with largest backward k-distance and evict that frame. Only frames
@@ -74,8 +68,8 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
   }
   // Found the frame
   if (pair != nullptr) {
-    pair->second->Reset();
     *frame_id = pair->second->fid_;
+    node_store_.erase(*frame_id);
     curr_size_--;
     return true;
   }
@@ -99,8 +93,16 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
   BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find the current frame and update its history
   auto pair = node_store_.find(frame_id);
-  pair->second.history_.emplace_back(current_timestamp_);
-  pair->second.k_++;
+  if (pair == node_store_.end()) {
+    auto new_entry = LRUKNode();
+    new_entry.fid_ = frame_id;
+    new_entry.history_.emplace_back(current_timestamp_);
+    new_entry.k_++;
+    node_store_[frame_id] = new_entry;
+  } else {
+    pair->second.history_.emplace_back(current_timestamp_);
+    pair->second.k_++;
+  }
   current_timestamp_++;
 }
 
@@ -124,15 +126,14 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   BUSTUB_ASSERT((size_t)frame_id < replacer_size_, "Invalid frame id");
   // Find and update the frame
   auto pair = node_store_.find(frame_id);
-  if (pair->second.k_ == 0) {
-    return;  // Node not initialized -> not found
+  if (pair != node_store_.end()) {
+    if (pair->second.is_evictable_ && !set_evictable) {
+      curr_size_--;
+    } else if (!pair->second.is_evictable_ && set_evictable) {
+      curr_size_++;
+    }
+    pair->second.is_evictable_ = set_evictable;
   }
-  if (pair->second.is_evictable_ && !set_evictable) {
-    curr_size_--;
-  } else if (!pair->second.is_evictable_ && set_evictable) {
-    curr_size_++;
-  }
-  pair->second.is_evictable_ = set_evictable;
 }
 
 /**
@@ -156,12 +157,12 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
   // Find the current frame
   auto pair = node_store_.find(frame_id);
   // If specified frame is not found, directly return from this function.
-  if (pair->second.k_ == 0) {
-    return;  // Node not initialized -> not found
+  if (pair == node_store_.end()) {
+    return;
   }
   BUSTUB_ASSERT(pair->second.is_evictable_, "Frame is not evictable");
   // Remove the frame's access history
-  pair->second.Reset();
+  node_store_.erase(frame_id);
   // Decrement replacer size
   curr_size_--;
 }

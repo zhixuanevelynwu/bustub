@@ -76,7 +76,15 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
+  auto InsertHelper(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
+      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
   auto InsertRecurse(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
+      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
+  void InsertToLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key, ValueType value);
+  void InsertToInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node, KeyType key, page_id_t value);
+  auto SplitLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf)
+      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
+  auto SplitInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node)
       -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
 
   // Remove a key and its value from this B+ tree.
@@ -92,8 +100,9 @@ class BPlusTree {
   void SetRootPageId(page_id_t page_id);
 
   // Get node helper functions
+  void StartNewTree(KeyType key, ValueType value);
   auto CreateLeafPage(page_id_t *leaf_pid) -> BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *;
-  auto CreateInternalPage(page_id_t *node_pid) -> BPlusTreePage *;
+  auto CreateInternalPage(page_id_t *node_pid) -> BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *;
   auto GetBPlusTreePage(page_id_t page_id) -> BPlusTreePage *;
 
   // Index iterator

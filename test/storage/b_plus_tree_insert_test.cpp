@@ -75,10 +75,10 @@ TEST(BPlusTreeTests, GetValueTest) {
     keys.push_back(dist(mt));
     // keys.push_back(1);
   }
-  for (auto k : keys) {
-    std::cout << k << " ";
-  }
-  std::cout << std::endl;
+  // for (auto k : keys) {
+  //   std::cout << k << " ";
+  // }
+  // std::cout << std::endl;
 
   // Search on an empty tree should return false
   index_key.SetFromInteger(0);

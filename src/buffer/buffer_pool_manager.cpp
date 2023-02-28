@@ -59,6 +59,7 @@ auto BufferPoolManager::NewPage(page_id_t *page_id) -> Page * {
   // Pick replacement frame
   // First check if there's any free frames to use
   auto frame_id = PickReplacementFrame();
+  replacer_->SetEvictable(frame_id, false);
   // Create a new page in the buffer pool
   pages_[frame_id].ResetMemory();
   *page_id = AllocatePage();
