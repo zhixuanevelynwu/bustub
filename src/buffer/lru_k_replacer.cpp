@@ -100,6 +100,9 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id, [[maybe_unused]] AccessType
     new_entry.k_++;
     node_store_[frame_id] = new_entry;
   } else {
+    if (pair->second.k_ >= k_) {
+      pair->second.history_.pop_front();
+    }
     pair->second.history_.emplace_back(current_timestamp_);
     pair->second.k_++;
   }

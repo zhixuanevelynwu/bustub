@@ -277,7 +277,11 @@ auto BufferPoolManager::FetchPageWrite(page_id_t page_id) -> WritePageGuard {
  * @param[out] page_id, the id of the new page
  * @return BasicPageGuard holding a new page
  */
-auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard { return {this, NewPage(page_id)}; }
+auto BufferPoolManager::NewPageGuarded(page_id_t *page_id) -> BasicPageGuard {
+  auto page = NewPage(page_id);
+  BUSTUB_ASSERT(page, "Failed to create new page");
+  return {this, page};
+}
 
 // TODO(student): You may add additional private members and helper functions
 /**

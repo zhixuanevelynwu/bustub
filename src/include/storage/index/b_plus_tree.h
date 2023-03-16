@@ -78,22 +78,16 @@ class BPlusTree {
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
   auto InsertHelper(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
       -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
-  auto InsertRecurse(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
-      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
   void InsertToLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key, ValueType value);
   void InsertToInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node, KeyType key, page_id_t value);
-  auto SplitLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf)
-      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
-  auto SplitInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node)
-      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
+  auto SplitLeaf(page_id_t leaf_pid) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
+  auto SplitInternal(page_id_t node_pid) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
 
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;
-  auto GetValueRecurse(const BPlusTreePage *current, const KeyType &key, std::vector<ValueType> *result,
-                       Transaction *txn = nullptr) -> bool;
 
   // Return the page id of the root node
   auto GetRootPageId() -> page_id_t;
