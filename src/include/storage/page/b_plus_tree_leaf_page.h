@@ -61,6 +61,9 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto ValueAt(int index) const -> ValueType;
   auto InsertAt(KeyType key, ValueType value, int index) -> bool;
   auto Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2_id) -> KeyType;
+  void RemoveAt(int index);
+  auto Redistribute(BPlusTreeLeafPage *neighbor, bool is_left) -> KeyType;
+  auto Merge(BPlusTreeLeafPage *neighbor) -> KeyType;
 
   /**
    * @brief for test only return a string representing all keys in

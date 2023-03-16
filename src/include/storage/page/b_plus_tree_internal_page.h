@@ -95,6 +95,27 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   auto Spill(BPlusTreeInternalPage *node2) -> KeyType;
 
   /**
+   * @brief Remove a new element from the array. Shift all elements after index by 1. Before calling this function, it
+   * is the caller's job to figure out the correct index to maintain a sorted order. Increments size of the leaf by one
+   * on success.
+   *
+   * @param key
+   * @param index
+   */
+  void RemoveAt(int index);
+
+  /**
+   * @brief Get neighbors of the leaf page containing key
+   *
+   * @param key
+   */
+  auto GetNeighbors(int index) -> std::pair<page_id_t, page_id_t>;
+
+  auto Redistribute(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType;
+
+  auto Merge(BPlusTreeInternalPage *neighbor) -> KeyType;
+
+  /**
    * @brief For test only, return a string representing all keys in
    * this internal page, formatted as "(key1,key2,key3,...)"
    *

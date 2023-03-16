@@ -98,28 +98,35 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     return true;
   }
 
-  auto root = GetBPlusTreePage(root_pid);
+  auto root = reinterpret_cast<InternalPage *>(GetBPlusTreePage(root_pid));
   auto mid_pair = InsertHelper(root, key, value, txn);
   if (mid_pair != nullptr) {  // need to change root
     page_id_t root2_pid;
     auto root2 = CreateInternalPage(&root2_pid);
-    root2->InsertAt(mid_pair->first, root_pid, 0);
+    root2->InsertAt(root->KeyAt(0), root_pid, 0);
     root2->InsertAt(mid_pair->first, mid_pair->second, 1);
     SetRootPageId(root2_pid);
   }
   return true;
 }
 
+/**
+ * @brief Helper function for insertion
+ *
+ * @param current
+ * @param key
+ * @param value
+ * @param txn
+ * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::InsertHelper(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn)
     -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
   // keep track of parents
   std::stack<page_id_t> parents;
   page_id_t current_pid = GetRootPageId();
-  if (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
-    parents.push(GetRootPageId());
-  }
   while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+    parents.push(current_pid);
     auto node = reinterpret_cast<InternalPage *>(current);
     int index = 0;
     while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
@@ -127,9 +134,6 @@ auto BPLUSTREE_TYPE::InsertHelper(BPlusTreePage *current, const KeyType &key, co
     }
     current_pid = node->ValueAt(index);
     current = GetBPlusTreePage(current_pid);
-    if (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
-      parents.push(current_pid);
-    }
   }
   // insert at leaf
   auto leaf = reinterpret_cast<LeafPage *>(current);
@@ -153,6 +157,14 @@ auto BPLUSTREE_TYPE::InsertHelper(BPlusTreePage *current, const KeyType &key, co
   return nullptr;
 }
 
+/**
+ * @brief Inserts a key value pair to leaf
+ *
+ * @param leaf
+ * @param key
+ * @param value
+ * @return INDEX_TEMPLATE_ARGUMENTS
+ */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertToLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key,
                                   ValueType value) {
@@ -163,6 +175,14 @@ void BPLUSTREE_TYPE::InsertToLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyCompa
   leaf->InsertAt(key, value, index);
 }
 
+/**
+ * @brief Inserts a key pid pair to internal page
+ *
+ * @param node
+ * @param key
+ * @param value
+ * @return INDEX_TEMPLATE_ARGUMENTS
+ */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertToInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node, KeyType key,
                                       page_id_t value) {
@@ -173,6 +193,12 @@ void BPLUSTREE_TYPE::InsertToInternal(BPlusTreeInternalPage<KeyType, page_id_t, 
   node->InsertAt(key, value, index);
 }
 
+/**
+ * @brief Splits a leaf into 2
+ *
+ * @param leaf_pid
+ * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::SplitLeaf(page_id_t leaf_pid) -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
   // don't want leaf to be evicted here
@@ -189,6 +215,12 @@ auto BPLUSTREE_TYPE::SplitLeaf(page_id_t leaf_pid) -> std::shared_ptr<std::pair<
   return std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, leaf2_pid);
 }
 
+/**
+ * @brief Splits an internal page into 2
+ *
+ * @param node_pid
+ * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::SplitInternal(page_id_t node_pid) -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
   // same here
@@ -220,6 +252,109 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   // Declaration of context instance.
   Context ctx;
   (void)ctx;
+
+  auto root_pid = GetRootPageId();
+  if (root_pid == INVALID_PAGE_ID) {
+    return;
+  }
+
+  auto root = GetBPlusTreePage(root_pid);
+  RemoveHelper(root, key);  // To keep it short.
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
+  // keep track of parents
+  std::stack<std::pair<page_id_t, int>> parents;
+  page_id_t current_pid = GetRootPageId();
+  while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+    auto node = reinterpret_cast<InternalPage *>(current);
+    int index = 0;
+    while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
+      index++;
+    }
+    parents.push(std::pair<page_id_t, int>(current_pid, index));
+    current_pid = node->ValueAt(index);
+    current = GetBPlusTreePage(current_pid);
+  }
+  // Delete from leaf
+  auto leaf = reinterpret_cast<LeafPage *>(current);
+  RemoveFromLeaf(leaf, key);
+  // Underflow check
+  if (!parents.empty() && leaf->GetSize() < leaf->GetMinSize()) {
+    // Gets its neighbors by consulting the immediate parent
+    auto parent = reinterpret_cast<InternalPage *>(GetBPlusTreePage(parents.top().first));
+    auto neighbors = parent->GetNeighbors(parents.top().second);
+    parents.pop();
+    // See if we can redistribute keys
+    if (neighbors.first != INVALID_PAGE_ID) {
+      auto left = reinterpret_cast<LeafPage *>(GetBPlusTreePage(neighbors.first));
+      if (left->GetSize() > left->GetMinSize()) {
+        RedistributeLeaves(current_pid, neighbors.first, true);
+      }
+    }
+    if (neighbors.second != INVALID_PAGE_ID) {
+      auto right = reinterpret_cast<LeafPage *>(GetBPlusTreePage(neighbors.second));
+      if (right->GetSize() > right->GetMinSize()) {
+        RedistributeLeaves(current_pid, neighbors.first, false);
+      }
+    }
+  }
+}
+
+/**
+ * @brief Remoces a key from the leaf
+ *
+ * @param leaf
+ * @param key
+ * @return INDEX_TEMPLATE_ARGUMENTS
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key) {
+  int index = 0;
+  while (index < leaf->GetSize() && comparator_(key, leaf->KeyAt(index)) > 0) {
+    index++;
+  }
+  if (comparator_(key, leaf->KeyAt(index)) != 0) {
+    return;
+  }
+  leaf->RemoveAt(index);
+}
+
+/**
+ * @brief Removes a key from the internal page
+ *
+ * @param node
+ * @param key
+ * @return INDEX_TEMPLATE_ARGUMENTS
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::RemoveFromInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node, KeyType key) {
+  int index = 1;
+  while (comparator_(key, node->KeyAt(index)) > 0 && index < node->GetSize()) {
+    index++;
+  }
+  node->RemoveAt(index);
+}
+
+/**
+ * @brief Redistributes keys among 2 leaf pages
+ *
+ * @param leaf_pid
+ * @param neighbor_pid
+ * @param is_left if the provided neighbor param is on the left side of the leaf
+ * @return page_id_t the new key to update upward
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::RedistributeLeaves(page_id_t leaf_pid, page_id_t neighbor_pid, bool is_left) -> KeyType {
+  // don't want leaf to be evicted here
+  WritePageGuard leaf_guard = bpm_->FetchPageWrite(leaf_pid);
+  auto leaf = reinterpret_cast<LeafPage *>(leaf_guard.AsMut<BPlusTreePage>());
+
+  WritePageGuard neighbor_guard = bpm_->FetchPageWrite(neighbor_pid);
+  auto neighbor = reinterpret_cast<LeafPage *>(leaf_guard.AsMut<BPlusTreePage>());
+
+  return leaf->Redistribute(neighbor, is_left);
 }
 
 /*****************************************************************************

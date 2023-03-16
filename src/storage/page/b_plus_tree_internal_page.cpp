@@ -12,6 +12,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "common/config.h"
 #include "common/exception.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 
@@ -81,6 +82,76 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Spill(BPlusTreeInternalPage *node2) -> KeyT
   }
   this->SetSize(mid);
   return mid_key;
+}
+
+/**
+ * @brief Remove a key from the array
+ *
+ * @param key
+ * @param index
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveAt(int index) {
+  for (int i = index; i < GetSize() - 1; ++i) {
+    array_[i] = array_[i + 1];
+  }
+  IncreaseSize(-1);
+}
+
+/**
+ * @brief Get neighbors
+ *
+ * @param index
+ * @return std::pair<page_id_t, page_id_t>
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetNeighbors(int index) -> std::pair<page_id_t, page_id_t> {
+  auto left = index > 0 ? ValueAt(index - 1) : INVALID_PAGE_ID;
+  auto right = index < GetSize() - 1 ? ValueAt(index + 1) : INVALID_PAGE_ID;
+  return std::pair<page_id_t, page_id_t>(left, right);
+}
+
+/**
+ * @brief Redistribute keys among two leaves. This function always assumes the neighbor has more keys.
+ *
+ * @param neighbor
+ * @param is_left if the provided neighbor param is on the left side of the leaf
+ * @return KeyType
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Redistribute(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType {
+  KeyType new_key;
+  if (is_left) {
+    // The neighbor is smaller than this. Borrow the largest key from the neighbor
+    new_key = neighbor->KeyAt(neighbor->GetSize() - 1);
+    this->InsertAt(new_key, neighbor->ValueAt(neighbor->GetSize() - 1), 0);
+    neighbor->RemoveAt(neighbor->GetSize() - 1);
+  } else {
+    new_key = neighbor->KeyAt(0);
+    this->InsertAt(new_key, neighbor->ValueAt(0), this->GetSize() - 1);
+    neighbor->RemoveAt(0);
+  }
+  return new_key;
+}
+
+/**
+ * @brief Merges a page with its neighbor. Assumes neighbor is larger than the leaf page.
+ *
+ * @param neighbor
+ * @param is_left
+ * @return KeyType
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Merge(BPlusTreeInternalPage *neighbor) -> KeyType {
+  auto original_size = this->GetSize();
+  auto neighbor_size = neighbor->GetSize();
+  KeyType to_remove = neighbor->KeyAt(0);
+  this->IncreaseSize(neighbor_size);
+  for (int i = original_size; i < this->GetSize(); i++) {
+    this->array_[i] = neighbor->array_[i - original_size];
+  }
+  neighbor->SetSize(0);
+  return to_remove;
 }
 
 // valuetype for internalNode should be page id_t
