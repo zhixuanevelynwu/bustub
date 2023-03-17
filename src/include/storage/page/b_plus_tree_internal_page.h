@@ -109,7 +109,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    *
    * @param key
    */
-  auto GetNeighbors(int index) -> std::pair<page_id_t, page_id_t>;
+  auto GetNeighbors(int index) const -> std::pair<page_id_t, page_id_t>;
 
   auto Redistribute(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType;
 

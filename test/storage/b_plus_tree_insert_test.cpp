@@ -42,14 +42,14 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
   // create transaction
   auto *transaction = new Transaction(0);
 
-  std::vector<int64_t> keys = {10, 9, 8, 7, 6, 5, 4, 3, 2, 1};
+  std::vector<int64_t> keys = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18};
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
     // Check if each key is still in the tree
-    for (int64_t i = 10; i >= key; i--) {
+    for (int64_t i = 0; i <= key; i++) {
       index_key.SetFromInteger(i);
       EXPECT_EQ(tree.GetValue(index_key, nullptr), true);
     }
@@ -115,8 +115,7 @@ TEST(BPlusTreeTests, GetValueTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  int buffer_pool_size = 10000;
-  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager.get());
+  auto *bpm = new BufferPoolManager(50, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -132,7 +131,7 @@ TEST(BPlusTreeTests, GetValueTest) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = buffer_pool_size; i > 0; i--) {
+  for (int i = 1000; i > 0; i--) {
     keys.push_back(dist(mt));
     // keys.push_back(1);
   }

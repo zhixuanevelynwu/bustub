@@ -105,7 +105,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::RemoveAt(int index) {
  * @return std::pair<page_id_t, page_id_t>
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetNeighbors(int index) -> std::pair<page_id_t, page_id_t> {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetNeighbors(int index) const -> std::pair<page_id_t, page_id_t> {
   auto left = index > 0 ? ValueAt(index - 1) : INVALID_PAGE_ID;
   auto right = index < GetSize() - 1 ? ValueAt(index + 1) : INVALID_PAGE_ID;
   return std::pair<page_id_t, page_id_t>(left, right);
