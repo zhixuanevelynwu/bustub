@@ -89,6 +89,9 @@ class BPlusTree {
   void RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key);
   void RemoveFromInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node, KeyType key);
   auto RedistributeLeaves(page_id_t leaf_pid, page_id_t neighbor_pid, bool is_left) -> KeyType;
+  auto MergeLeaves(page_id_t left_pid, page_id_t right_pid) -> KeyType;
+  auto RedistributeInternals(page_id_t internal_pid, page_id_t neighbor_pid, bool is_left) -> KeyType;
+  auto MergeInternals(page_id_t left_pid, page_id_t right_pid) -> KeyType;
 
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;
