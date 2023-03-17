@@ -263,6 +263,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   // Check if current (root) underflows and is internal
   // If so, we need to change root
   root = GetBPlusTreePage(root_pid);
+  if (root->GetSize() == 0) {
+    SetRootPageId(INVALID_PAGE_ID);
+  }
   if (root->GetPageType() == IndexPageType::INTERNAL_PAGE && root->GetSize() == 1) {
     auto root_internal = reinterpret_cast<InternalPage *>(root);
     SetRootPageId(root_internal->ValueAt(0));
@@ -304,8 +307,9 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
     // Acquire write guard on immediate parent
     auto parent_pid = parents.top().first;
     auto index = parents.top().second;
-    WritePageGuard parent_guard = bpm_->FetchPageWrite(parent_pid);
-    auto parent = reinterpret_cast<InternalPage *>(parent_guard.AsMut<BPlusTreePage>());
+    // WritePageGuard parent_guard = bpm_->FetchPageWrite(parent_pid);
+    // auto parent = reinterpret_cast<InternalPage *>(parent_guard.AsMut<BPlusTreeHeaderPage>());
+    auto parent = reinterpret_cast<InternalPage *>(GetBPlusTreePage(parent_pid));
     parents.pop();
     // Gets its neighbors by consulting the immediate parent
     auto neighbors = parent->GetNeighbors(index);
@@ -313,6 +317,7 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
       auto left = GetBPlusTreePage(neighbors.first);
       if (left->GetSize() > left->GetMinSize()) {  // See if we can redistribute keys
         auto new_key = RedistributeLeaves(current_pid, neighbors.first, true);
+        // std::cout << "(left) new_key is " << new_key << std::endl;
         parent->SetKeyAt(index, new_key);
         return;
       }
@@ -322,6 +327,7 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
       auto right = GetBPlusTreePage(neighbors.second);
       if (right->GetSize() > right->GetMinSize()) {  // See if we can redistribute keys
         auto new_key = RedistributeLeaves(current_pid, neighbors.second, false);
+        // std::cout << "(right) new_key is " << new_key << std::endl;
         parent->SetKeyAt(index + 1, new_key);
         return;
       }
@@ -367,7 +373,7 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
 }
 
 /**
- * @brief Remoces a key from the leaf
+ * @brief Removes a key from the leaf
  *
  * @param leaf
  * @param key

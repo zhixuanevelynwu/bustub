@@ -127,7 +127,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Redistribute(BPlusTreeLeafPage *neighbor, bool 
     this->InsertAt(new_key, neighbor->ValueAt(neighbor->GetSize() - 1), 0);
     neighbor->RemoveAt(neighbor->GetSize() - 1);
   } else {
-    this->InsertAt(neighbor->KeyAt(0), neighbor->ValueAt(0), this->GetSize() - 1);
+    this->InsertAt(neighbor->KeyAt(0), neighbor->ValueAt(0), this->GetSize());
     neighbor->RemoveAt(0);
     new_key = neighbor->KeyAt(0);
   }
