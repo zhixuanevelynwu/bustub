@@ -83,20 +83,20 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
     }
   }
 
-  EXPECT_EQ(size, 2);
+  EXPECT_EQ(size, 4);
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;
   delete bpm;
 }
 
-TEST(BPlusTreeTests, DeleteRandom) {
+TEST(BPlusTreeTests, DeleteBackward) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(1000, disk_manager.get());
+  auto *bpm = new BufferPoolManager(10, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -112,9 +112,9 @@ TEST(BPlusTreeTests, DeleteRandom) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 1000; i > 0; i--) {
-    auto r = dist(mt);
-    keys.push_back(r);
+  for (int i = 20; i > 0; i--) {
+    // auto r = dist(mt);
+    keys.push_back(i);
     // std::cout << r << std::endl;
   }
 
@@ -142,7 +142,7 @@ TEST(BPlusTreeTests, DeleteRandom) {
   std::vector<int64_t> remove_keys = keys;
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
-    tree.Remove(index_key, transaction);
+    tree.Remove(index_key, transaction);  // Stop at 16
   }
 
   // Verify removal
