@@ -330,6 +330,7 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
   while (!parents.empty()) {
     auto current = GetBPlusTreePage(current_pid);
     if (current->GetSize() >= current->GetMinSize()) {
+      // std::cout << "did not underflow: " << current->GetMinSize() << std::endl;
       return;  // Did not underflow. No more operation.
     }
     // Gets its neighbors by consulting the immediate parent
