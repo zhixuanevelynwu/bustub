@@ -34,7 +34,7 @@ TEST(BPlusTreeTests, SmallDepthTest) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree (2, 3)
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 3, 4);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -126,7 +126,7 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
 
-  std::vector<int64_t> remove_keys = {1, 4, 3, 2, 5, 6, 7, 9, 10, 8};
+  std::vector<int64_t> remove_keys = {1, 4, 3, 2, 5, 6, 7, 9, 10, 8};  // 3
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);

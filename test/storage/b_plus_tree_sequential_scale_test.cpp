@@ -73,6 +73,13 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
     ASSERT_EQ(rids[0].GetSlotNum(), value);
   }
 
+  for (auto key : keys) {
+    index_key.SetFromInteger(key);
+    tree.Remove(index_key, transaction);
+    tree.GetValue(index_key, &rids);
+    ASSERT_EQ(rids.size(), 0);
+  }
+
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;
   delete bpm;

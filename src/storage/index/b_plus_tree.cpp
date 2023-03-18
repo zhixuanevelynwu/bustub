@@ -101,12 +101,12 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     return true;
   }
 
-  auto root = reinterpret_cast<InternalPage *>(GetBPlusTreePage(root_pid));
+  auto root = GetBPlusTreePage(root_pid);
   auto mid_pair = InsertHelper(root, key, value, txn);
   if (mid_pair != nullptr) {  // need to change root
     page_id_t root2_pid;
     auto root2 = CreateInternalPage(&root2_pid);
-    root2->InsertAt(root->KeyAt(0), root_pid, 0);
+    root2->InsertAt(mid_pair->first, root_pid, 0);
     root2->InsertAt(mid_pair->first, mid_pair->second, 1);
     SetRootPageId(root2_pid);
   }
@@ -261,7 +261,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   if (root->GetSize() == 0) {
     SetRootPageId(INVALID_PAGE_ID);
   }
-  if (root->GetPageType() == IndexPageType::INTERNAL_PAGE && root->GetSize() == 1) {
+  if (root->GetSize() == 1 && root->GetPageType() == IndexPageType::INTERNAL_PAGE) {
     auto root_internal = reinterpret_cast<InternalPage *>(root);
     SetRootPageId(root_internal->ValueAt(0));
   }
@@ -293,7 +293,7 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
   auto leaf = reinterpret_cast<LeafPage *>(current);
   RemoveFromLeaf(leaf, key);
   // Return directly if not underflow
-  if (leaf->GetSize() >= leaf->GetMinSize()) {
+  if (leaf->GetSize() >= leaf->GetMinSize()) {  // leaf size = 0
     return;
   }
   // Handle underflow
@@ -304,8 +304,10 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
     parent_pid = parents.top().first;
     index = parents.top().second;
     parents.pop();
-    auto neighbors = GetNeighbors(parent_pid, index);
-    if (neighbors.first != INVALID_PAGE_ID) {  // See if it has a left neighbor
+    auto neighbors = GetNeighbors(parent_pid, index);  // case when both are invalid
+    if (neighbors.first == INVALID_PAGE_ID && neighbors.second == INVALID_PAGE_ID) {
+      RemoveFromInternal(parent_pid, index);
+    } else if (neighbors.first != INVALID_PAGE_ID) {  // See if it has a left neighbor
       auto left = GetBPlusTreePage(neighbors.first);
       if (left->GetSize() > left->GetMinSize()) {  // See if we can redistribute keys
         auto new_key = RedistributeLeaves(current_pid, neighbors.first, true);
@@ -330,7 +332,6 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
   while (!parents.empty()) {
     auto current = GetBPlusTreePage(current_pid);
     if (current->GetSize() >= current->GetMinSize()) {
-      // std::cout << "did not underflow: " << current->GetMinSize() << std::endl;
       return;  // Did not underflow. No more operation.
     }
     // Gets its neighbors by consulting the immediate parent
@@ -338,7 +339,9 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
     index = parents.top().second;
     parents.pop();
     auto neighbors = GetNeighbors(parent_pid, index);
-    if (neighbors.first != INVALID_PAGE_ID) {  // See if it has a left neighbor
+    if (neighbors.first == INVALID_PAGE_ID && neighbors.second == INVALID_PAGE_ID) {
+      RemoveFromInternal(parent_pid, index);
+    } else if (neighbors.first != INVALID_PAGE_ID) {  // See if it has a left neighbor
       auto left = GetBPlusTreePage(neighbors.first);
       if (left->GetSize() > left->GetMinSize()) {  // See if we can redistribute keys
         auto new_key = RedistributeInternals(current_pid, neighbors.first, true);
@@ -392,6 +395,12 @@ void BPLUSTREE_TYPE::RemoveFromInternal(page_id_t pid, int index) {
   WritePageGuard parent_write_guard = bpm_->FetchPageWrite(pid);
   auto parent_write = reinterpret_cast<InternalPage *>(parent_write_guard.AsMut<BPlusTreePage>());
   parent_write->RemoveAt(index);
+  // if (parent_write->GetSize() == 1) {
+  //   auto min_child_pid = parent_write->ValueAt(0);
+  //   ReadPageGuard read_guard = bpm_->FetchPageRead(min_child_pid);
+  //   auto min_child = reinterpret_cast<const LeafPage *>(read_guard.As<BPlusTreePage>());
+  //   parent_write->SetKeyAt(0, min_child->KeyAt(0));
+  // }
 }
 
 /**
