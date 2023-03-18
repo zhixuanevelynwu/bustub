@@ -33,8 +33,8 @@ TEST(BPlusTreeTests, SmallDepthTest) {
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
-  // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
+  // create b+ tree (2, 3)
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 3, 4);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
