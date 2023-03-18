@@ -74,6 +74,7 @@ TEST(BPlusTreeTests, ScaleTest) {  // NOLINT
   }
 
   for (auto key : keys) {
+    rids.clear();
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
     tree.GetValue(index_key, &rids);
