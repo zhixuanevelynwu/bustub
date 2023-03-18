@@ -92,6 +92,7 @@ auto B_PLUS_TREE_LEAF_PAGE_TYPE::Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2
   for (int i = mid; i < this->GetSize(); ++i) {
     leaf2->InsertAt(KeyAt(i), ValueAt(i), i - mid);
   }
+  leaf2->next_page_id_ = this->next_page_id_;
   this->next_page_id_ = leaf2_id;
   this->SetSize(mid);
   return mid_key;
