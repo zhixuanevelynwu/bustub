@@ -253,7 +253,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   }
 
   auto root = GetBPlusTreePage(root_pid);
-  RemoveHelper(root, key);  // To keep it short.
+  RemoveHelper(root, key);
 
   // Check if current (root) underflows and is internal
   // If so, we need to change root
@@ -508,7 +508,18 @@ void BPLUSTREE_TYPE::SetKeyInternal(page_id_t pid, KeyType key, int index) {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  auto root_pid = GetRootPageId();
+  auto root = GetBPlusTreePage(root_pid);
+  auto current = root;
+  auto first_pid = root_pid;
+  while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+    auto node = reinterpret_cast<const InternalPage *>(current);
+    first_pid = node->ValueAt(0);
+    current = GetBPlusTreePage(first_pid);
+  }
+  return INDEXITERATOR_TYPE(bpm_, first_pid, 0);
+}
 
 /*
  * Input parameter is low key, find the leaf page that contains the input key
@@ -516,7 +527,30 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE()
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
+  auto root_pid = GetRootPageId();
+  auto root = GetBPlusTreePage(root_pid);
+  auto current = root;
+  auto target_pid = root_pid;
+  int index = 0;
+  while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+    auto node = reinterpret_cast<const InternalPage *>(current);
+    while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
+      index++;
+    }
+    target_pid = node->ValueAt(index);
+    current = GetBPlusTreePage(target_pid);
+  }
+  auto leaf = reinterpret_cast<const LeafPage *>(current);
+  for (index = 0; index < leaf->GetSize(); index++) {
+    auto current_key = leaf->KeyAt(index);
+    auto cmp = comparator_(key, current_key);
+    if (cmp <= 0) {
+      break;
+    }
+  }
+  return INDEXITERATOR_TYPE(bpm_, target_pid, index);
+}
 
 /*
  * Input parameter is void, construct an index iterator representing the end
@@ -524,7 +558,18 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE { return IN
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(); }
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  auto root_pid = GetRootPageId();
+  auto root = GetBPlusTreePage(root_pid);
+  auto current = root;
+  auto last_pid = root_pid;
+  while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+    auto node = reinterpret_cast<const InternalPage *>(current);
+    last_pid = node->ValueAt(current->GetSize() - 1);
+    current = GetBPlusTreePage(last_pid);
+  }
+  return INDEXITERATOR_TYPE(bpm_, last_pid, current->GetSize());
+}
 
 /**
  * @return Page id of the root of this tree

@@ -36,7 +36,7 @@ class IndexIterator {
     return (itr.bpm_ == bpm_ && itr.current_pid_ == current_pid_ && itr.index_ == index_);
   }
 
-  auto operator!=(const IndexIterator &itr) const -> bool { return !(this == itr); }
+  auto operator!=(const IndexIterator &itr) const -> bool { return !((*this) == itr); }
 
  private:
   // add your own private member variables here
