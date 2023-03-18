@@ -99,14 +99,15 @@ class BPlusTree {
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;
 
   // Return the page id of the root node
-  auto GetRootPageId() -> page_id_t;
+  auto GetRootPageId() const -> page_id_t;
   void SetRootPageId(page_id_t page_id);
 
   // Get node helper functions
   void StartNewTree(KeyType key, ValueType value);
   auto CreateLeafPage(page_id_t *leaf_pid) -> BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *;
   auto CreateInternalPage(page_id_t *node_pid) -> BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *;
-  auto GetBPlusTreePage(page_id_t page_id) -> BPlusTreePage *;
+  auto GetPageRead(page_id_t page_id) -> const BPlusTreePage *;
+  auto GetPageWrite(page_id_t page_id) -> BPlusTreePage *;
 
   // Index iterator
   auto Begin() -> INDEXITERATOR_TYPE;
