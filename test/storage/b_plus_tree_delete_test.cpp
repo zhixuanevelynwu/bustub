@@ -90,13 +90,13 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
   delete bpm;
 }
 
-TEST(BPlusTreeTests, DeleteBackward) {
+TEST(BPlusTreeTests, DeleteRandom) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(10, disk_manager.get());
+  auto *bpm = new BufferPoolManager(3, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -112,7 +112,7 @@ TEST(BPlusTreeTests, DeleteBackward) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 20; i > 0; i--) {
+  for (int i = 1000; i > 0; i--) {
     // auto r = dist(mt);
     keys.push_back(i);
     // std::cout << r << std::endl;

@@ -309,7 +309,6 @@ void BPLUSTREE_TYPE::RemoveHelper(BPlusTreePage *current, const KeyType &key) {
       auto left = GetBPlusTreePage(neighbors.first);
       if (left->GetSize() > left->GetMinSize()) {  // See if we can redistribute keys
         auto new_key = RedistributeLeaves(current_pid, neighbors.first, true);
-        std::cout << "new_key is " << new_key << std::endl;
         SetKeyInternal(parent_pid, new_key, index);
         return;
       }
