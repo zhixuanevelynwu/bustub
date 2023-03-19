@@ -84,19 +84,59 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
   Context ctx;
   (void)ctx;
-
-  if (GetValue(key, nullptr, txn)) {
-    return false;
-  }
-
   auto root_pid = GetRootPageId();
   if (root_pid == INVALID_PAGE_ID) {
     StartNewTree(key, value);
     return true;
   }
-
-  auto mid_pair = InsertHelper(root_pid, key, value, txn);
-  if (mid_pair != nullptr) {  // need to change root
+  std::stack<WritePageGuard> parents;  // keep track of parent latches
+  parents.push(bpm_->FetchPageWrite(root_pid));
+  auto current = (parents.top()).As<BPlusTreePage>();
+  page_id_t current_pid = root_pid;
+  // sink to the corresponding leaf
+  while (!current->IsLeafPage()) {
+    auto current_internal = reinterpret_cast<const InternalPage *>(current);
+    int index = 0;
+    while (comparator_(key, current_internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
+      index++;
+    }
+    current_pid = current_internal->ValueAt(index);
+    auto current_read_guard = bpm_->FetchPageRead(current_pid);
+    current = current_read_guard.As<BPlusTreePage>();
+    // child is safe -> release parents here
+    if (current->GetSize() < current->GetMaxSize()) {
+      while (!parents.empty()) {
+        parents.pop();
+      }
+    }
+    current_read_guard.Drop();
+    parents.push(bpm_->FetchPageWrite(current_pid));
+  }
+  // insert at leaf
+  auto leaf = reinterpret_cast<LeafPage *>((parents.top()).AsMut<BPlusTreePage>());
+  if (!InsertToLeaf(leaf, key, value)) {
+    return false;
+  }
+  // handle overflow
+  std::shared_ptr<std::pair<KeyType, page_id_t>> mid_pair = nullptr;
+  if (leaf->GetSize() > leaf_max_size_) {
+    mid_pair = SplitLeaf(leaf);
+    parents.pop();
+    // insert spilled key/value pair to parents
+    while (!parents.empty()) {
+      auto parent = reinterpret_cast<InternalPage *>(parents.top().AsMut<BPlusTreePage>());
+      InsertToInternal(parent, mid_pair->first, mid_pair->second);
+      if (parent->GetSize() > internal_max_size_) {
+        mid_pair = SplitInternal(parent);
+      } else {
+        mid_pair = nullptr;
+        break;
+      }
+      parents.pop();
+    }
+  }
+  // need to change root
+  if (mid_pair != nullptr) {
     page_id_t new_root_pid;
     bpm_->NewPageGuarded(&new_root_pid);
     WritePageGuard new_root_guard = bpm_->FetchPageWrite(new_root_pid);
@@ -111,68 +151,8 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 }
 
 /*****************************************************************************
- * INSERTION HELPER
+ * INSERTION HELPER FUNCTIONS
  *****************************************************************************/
-/**
- * @brief Insertion helper function
- *
- * @param root_pid
- * @param key
- * @param value
- * @param txn
- * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
- */
-INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::InsertHelper(page_id_t root_pid, const KeyType &key, const ValueType &value, Transaction *txn)
-    -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
-  std::stack<WritePageGuard> parents;
-  parents.push(bpm_->FetchPageWrite(root_pid));
-  page_id_t current_pid = root_pid;
-  auto current = (parents.top()).As<BPlusTreePage>();
-  while (!current->IsLeafPage()) {
-    auto current_internal = reinterpret_cast<const InternalPage *>(current);
-    int index = 0;
-    while (comparator_(key, current_internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
-      index++;
-    }
-    // step to corresponding child
-    current_pid = current_internal->ValueAt(index);
-    auto current_read_guard = bpm_->FetchPageRead(current_pid);
-    current = current_read_guard.As<BPlusTreePage>();
-    // child is safe -> release parents here
-    if (current->GetSize() < current->GetMaxSize()) {
-      while (!parents.empty()) {
-        parents.pop();
-      }
-    }
-    current_read_guard.Drop();
-    parents.push(bpm_->FetchPageWrite(current_pid));
-  }
-
-  // insert at leaf
-  auto leaf = reinterpret_cast<LeafPage *>((parents.top()).AsMut<BPlusTreePage>());
-  InsertToLeaf(leaf, key, value);
-  // handle overflow
-  if (leaf->GetSize() > leaf_max_size_) {
-    auto mid_pair = SplitLeaf(leaf);
-    parents.pop();
-    // insert spilled key/value pair to parents
-    while (!parents.empty()) {
-      auto parent = reinterpret_cast<InternalPage *>(parents.top().AsMut<BPlusTreePage>());
-      InsertToInternal(parent, mid_pair->first, mid_pair->second);
-      if (parent->GetSize() > internal_max_size_) {
-        mid_pair = SplitInternal(parent);
-      } else {
-        mid_pair = nullptr;
-        break;
-      }
-      parents.pop();
-    }
-    return mid_pair;
-  }
-  return nullptr;
-}
-
 /**
  * @brief Inserts a key value pair to leaf.
  * @note  The provided leaf must be write latched.
@@ -183,12 +163,17 @@ auto BPLUSTREE_TYPE::InsertHelper(page_id_t root_pid, const KeyType &key, const 
  * @return INDEX_TEMPLATE_ARGUMENTS
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value) {
+auto BPLUSTREE_TYPE::InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value) -> bool {
   int index = 0;
   while (index < leaf->GetSize() && comparator_(key, leaf->KeyAt(index)) > 0) {
     index++;
   }
+  // Check if key already exist
+  if (comparator_(key, leaf->KeyAt(index)) == 0) {
+    return false;
+  }
   leaf->InsertAt(key, value, index);
+  return true;
 }
 
 /**
@@ -265,7 +250,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     return;
   }
 
-  RemoveHelper(root_pid, key);
+  RemoveFrom(root_pid, key);
 
   // update root if needed
   ReadPageGuard root_guard = bpm_->FetchPageRead(root_pid);
@@ -290,7 +275,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
  * @return INDEX_TEMPLATE_ARGUMENTS
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::RemoveHelper(page_id_t root_pid, const KeyType &key) {
+void BPLUSTREE_TYPE::RemoveFrom(page_id_t root_pid, const KeyType &key) {
   // keep track of parents
   std::stack<std::pair<page_id_t, int>> parents;
   ReadPageGuard current_guard = bpm_->FetchPageRead(root_pid);

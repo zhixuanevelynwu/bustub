@@ -76,16 +76,14 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
-  auto InsertHelper(page_id_t root_pid, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
-      -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
-  void InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value);
+  auto InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value) -> bool;
   void InsertToInternal(InternalPage *parent, KeyType key, page_id_t value);
   auto SplitLeaf(LeafPage *leaf) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
   auto SplitInternal(InternalPage *node) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
-  void RemoveHelper(page_id_t root_pid, const KeyType &key);
+  void RemoveFrom(page_id_t root_pid, const KeyType &key);
   void RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key);
   void RemoveFromInternal(page_id_t pid, int index);
   auto RedistributeLeaves(page_id_t leaf_pid, page_id_t neighbor_pid, bool is_left) -> KeyType;
