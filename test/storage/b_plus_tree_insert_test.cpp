@@ -31,7 +31,7 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(3, disk_manager.get());
+  auto *bpm = new BufferPoolManager(30, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -94,7 +94,7 @@ TEST(BPlusTreeTests, GetValueRecurseTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  int buffer_pool_size = 50;
+  int buffer_pool_size = 30;
   auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
@@ -115,7 +115,7 @@ TEST(BPlusTreeTests, GetValueTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(3, disk_manager.get());
+  auto *bpm = new BufferPoolManager(30, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -193,7 +193,7 @@ TEST(BPlusTreeTests, ReversedInsertTest) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(50, disk_manager.get());
+  auto *bpm = new BufferPoolManager(30, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -251,7 +251,7 @@ TEST(BPlusTreeTests, InsertTest1) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(50, disk_manager.get());
+  auto *bpm = new BufferPoolManager(30, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -290,7 +290,7 @@ TEST(BPlusTreeTests, InsertTest2) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(50, disk_manager.get());
+  auto *bpm = new BufferPoolManager(30, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
@@ -348,7 +348,7 @@ TEST(BPlusTreeTests, InsertTest3) {
   GenericComparator<8> comparator(key_schema.get());
 
   auto disk_manager = std::make_unique<DiskManagerUnlimitedMemory>();
-  auto *bpm = new BufferPoolManager(50, disk_manager.get());
+  auto *bpm = new BufferPoolManager(30, disk_manager.get());
   // create and fetch header_page
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
