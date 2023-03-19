@@ -76,16 +76,16 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
-  auto InsertHelper(BPlusTreePage *current, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
+  auto InsertHelper(page_id_t root_pid, const KeyType &key, const ValueType &value, Transaction *txn = nullptr)
       -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
-  void InsertToLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key, ValueType value);
-  void InsertToInternal(BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *node, KeyType key, page_id_t value);
+  void InsertToLeaf(page_id_t leaf_pid, KeyType key, ValueType value);
+  void InsertToInternal(page_id_t parent_pid, KeyType key, page_id_t value);
   auto SplitLeaf(page_id_t leaf_pid) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
   auto SplitInternal(page_id_t node_pid) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
-  void RemoveHelper(BPlusTreePage *current, const KeyType &key);
+  void RemoveHelper(page_id_t root_pid, const KeyType &key);
   void RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key);
   void RemoveFromInternal(page_id_t pid, int index);
   auto RedistributeLeaves(page_id_t leaf_pid, page_id_t neighbor_pid, bool is_left) -> KeyType;
@@ -94,6 +94,11 @@ class BPlusTree {
   auto MergeInternals(page_id_t left_pid, page_id_t right_pid) -> KeyType;
   auto GetNeighbors(page_id_t parent_pid, int index) -> std::pair<page_id_t, page_id_t>;
   void SetKeyInternal(page_id_t pid, KeyType key, int index);
+
+  // Return the size of a given page
+  auto GetPageSize(page_id_t pid) const -> int;
+  auto InternalMinSize() const -> int;
+  auto LeafMinSize() const -> int;
 
   // Return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn = nullptr) -> bool;
@@ -104,10 +109,6 @@ class BPlusTree {
 
   // Get node helper functions
   void StartNewTree(KeyType key, ValueType value);
-  auto CreateLeafPage(page_id_t *leaf_pid) -> BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *;
-  auto CreateInternalPage(page_id_t *node_pid) -> BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *;
-  auto GetPageRead(page_id_t page_id) -> const BPlusTreePage *;
-  auto GetPageWrite(page_id_t page_id) -> BPlusTreePage *;
 
   // Index iterator
   auto Begin() -> INDEXITERATOR_TYPE;
