@@ -111,7 +111,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    */
   auto GetNeighbors(int index) const -> std::pair<page_id_t, page_id_t>;
 
-  auto Redistribute(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType;
+  auto BorrowFrom(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType;
 
   auto Merge(BPlusTreeInternalPage *neighbor) -> KeyType;
 

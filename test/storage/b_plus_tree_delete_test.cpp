@@ -168,7 +168,7 @@ TEST(BPlusTreeTests, DeleteRandom) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 3, 4);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -221,6 +221,7 @@ TEST(BPlusTreeTests, DeleteRandom) {
     is_present = tree.GetValue(index_key, &rids);
 
     if (is_present) {
+      std::cout << "present_key is " << key << std::endl;
       EXPECT_EQ(rids.size(), 1);
       EXPECT_EQ(rids[0].GetPageId(), 0);
       EXPECT_EQ(rids[0].GetSlotNum(), key);

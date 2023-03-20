@@ -119,7 +119,7 @@ auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::GetNeighbors(int index) const -> std::pair<
  * @return KeyType
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::Redistribute(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType {
+auto B_PLUS_TREE_INTERNAL_PAGE_TYPE::BorrowFrom(BPlusTreeInternalPage *neighbor, bool is_left) -> KeyType {
   KeyType new_key;
   if (is_left) {
     // The neighbor is smaller than this. Borrow the largest key from the neighbor

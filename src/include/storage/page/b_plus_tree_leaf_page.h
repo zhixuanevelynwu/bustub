@@ -63,7 +63,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto InsertAt(KeyType key, ValueType value, int index) -> bool;
   auto Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2_id) -> KeyType;
   void RemoveAt(int index);
-  auto Redistribute(BPlusTreeLeafPage *neighbor, bool is_left) -> KeyType;
+  auto BorrowFrom(BPlusTreeLeafPage *neighbor, bool is_left) -> KeyType;
   auto Merge(BPlusTreeLeafPage *neighbor) -> KeyType;
 
   /**
