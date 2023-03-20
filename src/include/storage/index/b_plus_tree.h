@@ -83,7 +83,6 @@ class BPlusTree {
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);
-  void RemoveFrom(page_id_t root_pid, const KeyType &key);
   void RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key);
   auto MergeInternals(page_id_t left_pid, page_id_t right_pid) -> KeyType;
 

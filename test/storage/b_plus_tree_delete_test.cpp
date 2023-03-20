@@ -63,6 +63,7 @@ TEST(BPlusTreeTests, SmallDepthTest) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);  // 5
+    EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
   int64_t size = 0;
@@ -130,6 +131,7 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
   int64_t size = 0;
@@ -210,6 +212,7 @@ TEST(BPlusTreeTests, DeleteRandom) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);  // Stop at 16
+    EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
   // Verify removal
@@ -274,6 +277,7 @@ TEST(BPlusTreeTests, DeleteEdge1) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
   int64_t size = 0;
@@ -341,6 +345,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
   int64_t size = 0;
@@ -408,6 +413,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
   int64_t size = 0;

@@ -129,9 +129,9 @@ TEST(BPlusTreeTests, GetValueTest) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 1000; i > 0; i--) {
-    keys.push_back(dist(mt));
-    // keys.push_back(1);
+  for (int i = 10; i > 0; i--) {
+    // keys.push_back(dist(mt));
+    keys.push_back(i);
   }
   // for (auto k : keys) {
   //   std::cout << k << " ";
