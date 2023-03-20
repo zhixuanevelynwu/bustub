@@ -13,7 +13,7 @@ namespace bustub {
  */
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator(BufferPoolManager *bpm, page_id_t current_pid, int index)
-    : bpm_(bpm), current_pid_(current_pid), index_(index){};
+    : bpm_(bpm), current_pid_(current_pid), index_(index) {}
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator(){};  // NOLINT
