@@ -254,17 +254,20 @@ auto BPLUSTREE_TYPE::SplitInternal(InternalPage *node) -> std::shared_ptr<std::p
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
-  // declaration of context instance.
   Context ctx;
   (void)ctx;
-  auto root_pid = GetRootPageId();
-  if (root_pid == INVALID_PAGE_ID) {
+  // return immediately if empty
+  if (IsEmpty()) {
     return;
   }
-
-  // keep track of parent latches
+  // keep track of parents
+  std::vector<int> indices;
   std::vector<WritePageGuard> parents;
-  std::stack<int> indices;
+  // acquire latch on header
+  parents.emplace_back(bpm_->FetchPageWrite(header_page_id_));
+  auto header = (parents.back()).AsMut<BPlusTreeHeaderPage>();
+  // acquire latch on root
+  auto root_pid = header->root_page_id_;
   parents.emplace_back(bpm_->FetchPageWrite(root_pid));
   auto current = (parents.back()).As<const BPlusTreePage>();
   page_id_t current_pid = root_pid;
@@ -276,7 +279,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     while (comparator_(key, current_internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
       index++;
     }
-    indices.push(index);
+    indices.emplace_back(index);
     current_pid = current_internal->ValueAt(index);
     parents.emplace_back(bpm_->FetchPageWrite(current_pid));
     current = (parents.back()).As<BPlusTreePage>();
@@ -284,8 +287,8 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     if (current->GetSize() > current->GetMinSize()) {
       while (parents.size() > 1) {
         parents.erase(parents.begin());
-        indices.pop();
       }
+      indices.clear();
     }
   }
 
@@ -295,37 +298,40 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   if (leaf->GetSize() >= leaf->GetMinSize()) {  // return directly if no underflow
     return;
   }
+
   // handle underflow
   InternalPage *parent;
   if (parents.size() > 1) {
     // gets current neighbors by consulting the immediate parent
     parent = reinterpret_cast<InternalPage *>((*(parents.end() - 2)).AsMut<BPlusTreePage>());
-    int index = indices.top();
-    auto neighbors = parent->GetNeighbors(index);  // case when both are invalid
-    if (neighbors.first == INVALID_PAGE_ID && neighbors.second == INVALID_PAGE_ID) {
-      parent->RemoveAt(index);
-    } else if (neighbors.first != INVALID_PAGE_ID) {
-      WritePageGuard left_guard = bpm_->FetchPageWrite(neighbors.first);
-      auto left = reinterpret_cast<LeafPage *>(left_guard.AsMut<BPlusTreePage>());
-      if (left->GetSize() > left->GetMinSize()) {  // see if we can redistribute keys
-        auto new_key = leaf->BorrowFrom(left, true);
-        parent->SetKeyAt(index, new_key);
-        return;
+    if (parent->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+      int index = indices.back();
+      auto neighbors = parent->GetNeighbors(index);  // case when both are invalid
+      if (neighbors.first == INVALID_PAGE_ID && neighbors.second == INVALID_PAGE_ID) {
+        parent->RemoveAt(index);
+      } else if (neighbors.first != INVALID_PAGE_ID) {
+        WritePageGuard left_guard = bpm_->FetchPageWrite(neighbors.first);
+        auto left = reinterpret_cast<LeafPage *>(left_guard.AsMut<BPlusTreePage>());
+        if (left->GetSize() > left->GetMinSize()) {  // see if we can redistribute keys
+          auto new_key = leaf->BorrowFrom(left, true);
+          parent->SetKeyAt(index, new_key);
+          return;
+        }
+        left->Merge(leaf);
+        parent->RemoveAt(index);
+      } else {
+        WritePageGuard right_guard = bpm_->FetchPageWrite(neighbors.second);
+        auto right = reinterpret_cast<LeafPage *>(right_guard.AsMut<BPlusTreePage>());
+        if (right->GetSize() > right->GetMinSize()) {  // see if we can redistribute keys
+          auto new_key = leaf->BorrowFrom(right, false);
+          parent->SetKeyAt(index + 1, new_key);
+          return;
+        }
+        leaf->Merge(right);
+        parent->RemoveAt(index + 1);
       }
-      left->Merge(leaf);
-      parent->RemoveAt(index);
-    } else {
-      WritePageGuard right_guard = bpm_->FetchPageWrite(neighbors.second);
-      auto right = reinterpret_cast<LeafPage *>(right_guard.AsMut<BPlusTreePage>());
-      if (right->GetSize() > right->GetMinSize()) {  // see if we can redistribute keys
-        auto new_key = leaf->BorrowFrom(right, false);
-        parent->SetKeyAt(index + 1, new_key);
-        return;
-      }
-      leaf->Merge(right);
-      parent->RemoveAt(index + 1);
+      indices.pop_back();
     }
-    indices.pop();
   }
   parents.pop_back();  // release leaf
 
@@ -336,11 +342,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     }
     // Gets its neighbors by consulting the immediate parent
     auto cur = parent;  // note current cannot be released here
-    if (parents.empty()) {
+    parent = reinterpret_cast<InternalPage *>((*(parents.end() - 2)).AsMut<BPlusTreePage>());
+    if (parent->GetPageType() != IndexPageType::INTERNAL_PAGE) {
       break;
     }
-    parent = reinterpret_cast<InternalPage *>((*(parents.end() - 2)).AsMut<BPlusTreePage>());
-    int index = indices.top();
+    int index = indices.back();
     auto neighbors = parent->GetNeighbors(index);
     if (neighbors.first == INVALID_PAGE_ID && neighbors.second == INVALID_PAGE_ID) {
       parent->RemoveAt(index);
@@ -366,20 +372,20 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       parent->RemoveAt(index + 1);
     }
     parents.pop_back();  // release cur
-    indices.pop();
+    indices.pop_back();
   }
 
   // update root if needed
-  if (!parents.empty()) {
+  if (parents.size() > 1) {
     auto root = (parents.back()).As<BPlusTreePage>();
     if (root->GetSize() == 0) {
-      SetRootPageId(INVALID_PAGE_ID);
+      header->root_page_id_ = INVALID_PAGE_ID;
     }
     if (root->GetSize() == 1 && root->GetPageType() == IndexPageType::INTERNAL_PAGE) {
       auto root_internal = reinterpret_cast<const InternalPage *>(root);
-      SetRootPageId(root_internal->ValueAt(0));
+      header->root_page_id_ = root_internal->ValueAt(0);
     }
-    parents.pop_back();
+    parents.clear();
   }
 }
 

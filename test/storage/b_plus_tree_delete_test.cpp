@@ -328,6 +328,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
+    std::cout << tree.DrawBPlusTree() << std::endl;
   }
 
   std::vector<RID> rids;
@@ -345,6 +346,7 @@ TEST(BPlusTreeTests, DeleteTest1) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    std::cout << tree.DrawBPlusTree() << std::endl;
     EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
