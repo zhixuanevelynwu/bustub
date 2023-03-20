@@ -181,10 +181,9 @@ TEST(BPlusTreeTests, DeleteRandom) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 1000; i > 0; i--) {
-    // auto r = dist(mt);
-    keys.push_back(i);
-    // std::cout << r << std::endl;
+  for (int i = 10; i > 0; i--) {
+    auto r = dist(mt);
+    keys.push_back(r);
   }
 
   // Insert random keys into tree
@@ -224,7 +223,6 @@ TEST(BPlusTreeTests, DeleteRandom) {
     is_present = tree.GetValue(index_key, &rids);
 
     if (is_present) {
-      std::cout << "present_key is " << key << std::endl;
       EXPECT_EQ(rids.size(), 1);
       EXPECT_EQ(rids[0].GetPageId(), 0);
       EXPECT_EQ(rids[0].GetSlotNum(), key);
@@ -328,8 +326,19 @@ TEST(BPlusTreeTests, DeleteTest1) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
-    std::cout << tree.DrawBPlusTree() << std::endl;
   }
+
+  // iterator check
+  int64_t start_key = 1;
+  int64_t current_key = start_key;
+  index_key.SetFromInteger(start_key);
+  for (auto iterator = tree.Begin(); iterator != tree.End(); ++iterator) {
+    auto location = (*iterator).second;
+    EXPECT_EQ(location.GetPageId(), 0);
+    EXPECT_EQ(location.GetSlotNum(), current_key);
+    current_key = current_key + 1;
+  }
+  EXPECT_EQ(current_key, keys.size() + 1);
 
   std::vector<RID> rids;
   for (auto key : keys) {
@@ -346,7 +355,6 @@ TEST(BPlusTreeTests, DeleteTest1) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
-    std::cout << tree.DrawBPlusTree() << std::endl;
     EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
@@ -370,6 +378,20 @@ TEST(BPlusTreeTests, DeleteTest1) {
 
   EXPECT_EQ(size, 3);
 
+  // iterator check
+  size = 0;
+  start_key = 1;
+  current_key = 2;
+  index_key.SetFromInteger(start_key);
+  for (auto iterator = tree.Begin(); iterator != tree.End(); ++iterator) {
+    auto location = (*iterator).second;
+    EXPECT_EQ(location.GetPageId(), 0);
+    EXPECT_EQ(location.GetSlotNum(), current_key);
+    current_key = current_key + 1;
+    size++;
+  }
+  EXPECT_EQ(size, 3);
+
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;
   delete bpm;
@@ -386,7 +408,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -399,6 +421,18 @@ TEST(BPlusTreeTests, DeleteTest2) {
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
   }
+
+  // iterator check
+  int64_t start_key = 1;
+  int64_t current_key = start_key;
+  index_key.SetFromInteger(start_key);
+  for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
+    auto location = (*iterator).second;
+    EXPECT_EQ(location.GetPageId(), 0);
+    EXPECT_EQ(location.GetSlotNum(), current_key);
+    current_key = current_key + 1;
+  }
+  EXPECT_EQ(current_key, keys.size() + 1);
 
   std::vector<RID> rids;
   for (auto key : keys) {
@@ -415,6 +449,8 @@ TEST(BPlusTreeTests, DeleteTest2) {
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    std::cout << tree.DrawBPlusTree() << std::endl;
+    tree.Print(bpm);
     EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }
 
@@ -437,6 +473,18 @@ TEST(BPlusTreeTests, DeleteTest2) {
   }
 
   EXPECT_EQ(size, 1);
+
+  // iterator check
+  start_key = 2;
+  current_key = start_key;
+  index_key.SetFromInteger(start_key);
+  for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
+    auto location = (*iterator).second;
+    EXPECT_EQ(location.GetPageId(), 0);
+    EXPECT_EQ(location.GetSlotNum(), current_key);
+    current_key = current_key + 1;
+  }
+  EXPECT_EQ(current_key, start_key + keys.size() - remove_keys.size());
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete transaction;

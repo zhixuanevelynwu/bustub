@@ -46,7 +46,7 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
-    std::cout << tree.DrawBPlusTree() << std::endl;
+    // std::cout << tree.DrawBPlusTree() << std::endl;
     // Check if each key is still in the tree
     for (int64_t i = 0; i <= key; i++) {
       index_key.SetFromInteger(i);
