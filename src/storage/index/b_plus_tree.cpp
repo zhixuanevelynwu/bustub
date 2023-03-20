@@ -396,6 +396,9 @@ void BPLUSTREE_TYPE::RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyCom
   while (index < leaf->GetSize() && comparator_(key, leaf->KeyAt(index)) > 0) {
     index++;
   }
+  if (index >= leaf->GetSize()) {
+    return;
+  }
   if (comparator_(key, leaf->KeyAt(index)) != 0) {
     return;
   }

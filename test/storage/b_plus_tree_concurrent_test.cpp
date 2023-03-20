@@ -133,7 +133,8 @@ TEST(BPlusTreeConcurrentTest, InsertTestSmall) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 3, 4);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm,
+                                                           comparator);  //, 3, 4
   // keys to Insert
   std::vector<int64_t> keys;
   int64_t scale_factor = 5;
@@ -265,7 +266,7 @@ TEST(BPlusTreeConcurrentTest, InsertTest2) {
   delete bpm;
 }
 
-TEST(BPlusTreeConcurrentTest, DISABLED_DeleteTest1) {
+TEST(BPlusTreeConcurrentTest, DeleteTest1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());

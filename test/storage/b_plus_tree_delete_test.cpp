@@ -126,7 +126,7 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
 
-  std::vector<int64_t> remove_keys = {1, 4, 3, 2, 5, 6, 7, 9, 10, 8};  // 3
+  std::vector<int64_t> remove_keys = {1, 4, 4, 3, 2, 5, 6, 7, 9, 10, 8};  // 3
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
