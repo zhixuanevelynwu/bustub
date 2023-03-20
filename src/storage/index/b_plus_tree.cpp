@@ -85,14 +85,17 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
   Context ctx;
   (void)ctx;
-  auto root_pid = GetRootPageId();
+  // keep track of parent latches
+  std::vector<WritePageGuard> parents;
+  parents.emplace_back(bpm_->FetchPageWrite(header_page_id_));
+  auto header = (parents.back()).AsMut<BPlusTreeHeaderPage>();
+  auto root_pid = header->root_page_id_;
   if (root_pid == INVALID_PAGE_ID) {
-    StartNewTree(key, value);
+    auto leaf_id = StartNewTree(key, value);
+    header->root_page_id_ = leaf_id;
     return true;
   }
 
-  // keep track of parent latches
-  std::vector<WritePageGuard> parents;
   parents.emplace_back(bpm_->FetchPageWrite(root_pid));
   auto current = (parents.back()).As<BPlusTreePage>();
   page_id_t current_pid = root_pid;
@@ -129,6 +132,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     // insert spilled key/value pair to parents
     while (!parents.empty()) {
       auto parent = reinterpret_cast<InternalPage *>(parents.back().AsMut<BPlusTreePage>());
+      if (parent->GetPageType() != IndexPageType::INTERNAL_PAGE) {
+        break;
+      }
       InsertToInternal(parent, mid_pair->first, mid_pair->second);
       if (parent->GetSize() > internal_max_size_) {
         mid_pair = SplitInternal(parent);
@@ -150,7 +156,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     new_root->InsertAt(mid_pair->first, root_pid, 0);
     new_root->InsertAt(mid_pair->first, mid_pair->second, 1);
     new_root_guard.Drop();
-    SetRootPageId(new_root_pid);
+    auto header = (parents.back()).AsMut<BPlusTreeHeaderPage>();
+    header->root_page_id_ = new_root_pid;
+    parents.pop_back();
   }
   return true;
 }
@@ -517,14 +525,14 @@ void BPLUSTREE_TYPE::SetRootPageId(page_id_t page_id) {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::StartNewTree(KeyType key, ValueType value) {
+auto BPLUSTREE_TYPE::StartNewTree(KeyType key, ValueType value) -> page_id_t {
   page_id_t leaf_pid;
   auto leaf_page = bpm_->NewPageGuarded(&leaf_pid);
   WritePageGuard leaf_guard = bpm_->FetchPageWrite(leaf_pid);
   auto leaf = reinterpret_cast<LeafPage *>(leaf_guard.AsMut<BPlusTreePage>());
   leaf->Init(leaf_max_size_);
-  SetRootPageId(leaf_pid);
   leaf->InsertAt(key, value, 0);
+  return leaf_pid;
 }
 
 /*****************************************************************************

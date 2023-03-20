@@ -94,7 +94,7 @@ class BPlusTree {
   void SetRootPageId(page_id_t page_id);
 
   // Get node helper functions
-  void StartNewTree(KeyType key, ValueType value);
+  auto StartNewTree(KeyType key, ValueType value) -> page_id_t;
 
   // Index iterator
   auto Begin() -> INDEXITERATOR_TYPE;
