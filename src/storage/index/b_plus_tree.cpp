@@ -83,7 +83,6 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
-  // std::cout << "Insert " << key << std::endl;
   Context ctx;
   (void)ctx;
   // keep track of parent latches
@@ -337,7 +336,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   parents.pop_back();  // release leaf
 
   // Update parents accordingly
-  while (parents.size() > 1) {
+  while (!indices.empty()) {
     if (parent->GetSize() >= parent->GetMinSize()) {
       return;  // Did not underflow. No more operation.
     }
@@ -590,7 +589,8 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::PrintTree(page_id_t page_id, const BPlusTreePage *page) {
   if (page->IsLeafPage()) {
     auto *leaf = reinterpret_cast<const LeafPage *>(page);
-    std::cout << "Leaf Page: " << page_id << "\tNext: " << leaf->GetNextPageId() << std::endl;
+    std::cout << "Leaf Page (" << leaf_max_size_ << " " << ceil(leaf_max_size_ / 2) << "): " << page_id
+              << "\tNext: " << leaf->GetNextPageId() << std::endl;
 
     // Print the contents of the leaf page.
     std::cout << "Contents: ";
@@ -605,7 +605,8 @@ void BPLUSTREE_TYPE::PrintTree(page_id_t page_id, const BPlusTreePage *page) {
 
   } else {
     auto *internal = reinterpret_cast<const InternalPage *>(page);
-    std::cout << "Internal Page: " << page_id << std::endl;
+    std::cout << "Internal Page(" << internal_max_size_ << " " << ceil(internal_max_size_ / 2.0) << "): " << page_id
+              << std::endl;
 
     // Print the contents of the internal page.
     std::cout << "Contents: ";

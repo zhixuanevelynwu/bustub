@@ -23,7 +23,7 @@ namespace bustub {
 
 using bustub::DiskManagerUnlimitedMemory;
 
-TEST(BPlusTreeTests, DISABLED_SmallDepthTest) {
+TEST(BPlusTreeTests, SmallDepthTest) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -91,7 +91,7 @@ TEST(BPlusTreeTests, DISABLED_SmallDepthTest) {
   delete bpm;
 }
 
-TEST(BPlusTreeTests, DISABLED_SmallBufferPoolTest) {
+TEST(BPlusTreeTests, SmallBufferPoolTest) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -159,7 +159,7 @@ TEST(BPlusTreeTests, DISABLED_SmallBufferPoolTest) {
   delete bpm;
 }
 
-TEST(BPlusTreeTests, DISABLED_DeleteRandom) {
+TEST(BPlusTreeTests, DeleteRandom) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -235,7 +235,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteRandom) {
   delete bpm;
 }
 
-TEST(BPlusTreeTests, DISABLED_DeleteEdge1) {
+TEST(BPlusTreeTests, DeleteEdge1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -303,7 +303,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteEdge1) {
   delete bpm;
 }
 
-TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
+TEST(BPlusTreeTests, DeleteTest1) {
   // create KeyComparator and index schema
   auto key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema.get());
@@ -445,6 +445,7 @@ TEST(BPlusTreeTests, DeleteTest2) {
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
 
+  std::cout << tree.DrawBPlusTree() << std::endl;
   std::vector<int64_t> remove_keys = {1, 5, 3, 4};
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
