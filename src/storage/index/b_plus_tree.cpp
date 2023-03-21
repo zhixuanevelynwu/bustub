@@ -85,9 +85,6 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
   Context ctx;
   (void)ctx;
-  if (GetValue(key, nullptr, txn)) {
-    return false;  // key already in tree
-  }
   // keep track of parent latches
   std::vector<WritePageGuard> parents;
   parents.emplace_back(bpm_->FetchPageWrite(header_page_id_));
@@ -123,6 +120,11 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 
   // insert at leaf
   auto leaf = reinterpret_cast<LeafPage *>((parents.back()).AsMut<BPlusTreePage>());
+  for (int i = 0; i < leaf->GetSize(); i++) {
+    if (comparator_(key, leaf->KeyAt(i)) == 0) {
+      return false;
+    }
+  }
   std::shared_ptr<std::pair<KeyType, page_id_t>> mid_pair = nullptr;
   if (leaf->GetSize() == leaf_max_size_) {
     mid_pair = SplitInsert(leaf, key, value);

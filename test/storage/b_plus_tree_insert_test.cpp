@@ -130,7 +130,7 @@ TEST(BPlusTreeTests, GetValueTest) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 10; i > 0; i--) {
+  for (int i = 1000; i > 0; i--) {
     // keys.push_back(dist(mt));
     keys.push_back(i);
   }
