@@ -102,7 +102,7 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 3, 4);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -170,7 +170,7 @@ TEST(BPlusTreeTests, DeleteRandom) {
   page_id_t page_id;
   auto header_page = bpm->NewPage(&page_id);
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator);
   GenericKey<8> index_key;
   RID rid;
   // create transaction
@@ -181,9 +181,9 @@ TEST(BPlusTreeTests, DeleteRandom) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 10; i > 0; i--) {
-    auto r = dist(mt);
-    keys.push_back(r);
+  for (int i = 300; i > 45; i--) {
+    // auto r = dist(mt);
+    keys.push_back(i);
   }
 
   // Insert random keys into tree
@@ -192,7 +192,11 @@ TEST(BPlusTreeTests, DeleteRandom) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
+    std::cout << tree.DrawBPlusTree() << std::endl;
   }
+
+  index_key.SetFromInteger(45);
+  tree.Insert(index_key, rid, transaction);
 
   // Verify that they exist
   std::vector<RID> rids;
