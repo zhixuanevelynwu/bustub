@@ -96,6 +96,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     return true;
   }
 
+  // acquire latch on root
   parents.emplace_back(bpm_->FetchPageWrite(root_pid));
   auto current = (parents.back()).As<BPlusTreePage>();
   page_id_t current_pid = root_pid;
@@ -117,50 +118,32 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       }
     }
   }
-
-  // insert at leaf
   auto leaf = reinterpret_cast<LeafPage *>((parents.back()).AsMut<BPlusTreePage>());
-  for (int i = 0; i < leaf->GetSize(); i++) {
-    if (comparator_(key, leaf->KeyAt(i)) == 0) {
-      return false;
-    }
+  if (Contains(leaf, key)) {
+    return false;
   }
-  std::shared_ptr<std::pair<KeyType, page_id_t>> mid_pair = nullptr;
-  if (leaf->GetSize() == leaf_max_size_) {
-    mid_pair = SplitInsert(leaf, key, value);
-    parents.pop_back();
-    // insert spilled key/value pair to parents
-    while (!parents.empty()) {
-      auto parent = reinterpret_cast<InternalPage *>(parents.back().AsMut<BPlusTreePage>());
-      if (parent->GetPageType() != IndexPageType::INTERNAL_PAGE) {
-        break;
-      }
-      InsertToInternal(parent, mid_pair->first, mid_pair->second);
-      if (parent->GetSize() > internal_max_size_) {
-        mid_pair = SplitInternal(parent);
-      } else {
-        mid_pair = nullptr;
-        break;
-      }
-      parents.pop_back();
-    }
-  } else {
-    InsertToLeaf(leaf, key, value);
+  std::shared_ptr<std::pair<KeyType, page_id_t>> mid_pair = SplitInsertLeaf(leaf, key, value);
+  parents.pop_back();
+  if (mid_pair == nullptr) {
     return true;
+  }
+
+  // insert spilled key/value pair to parents
+  while (!parents.empty()) {
+    auto parent = reinterpret_cast<InternalPage *>(parents.back().AsMut<BPlusTreePage>());
+    if (parent->GetPageType() != IndexPageType::INTERNAL_PAGE) {
+      break;
+    }
+    mid_pair = SplitInsertInternal(parent, mid_pair->first, mid_pair->second);
+    if (mid_pair == nullptr) {
+      break;
+    }
+    parents.pop_back();
   }
 
   // change root if necessary
   if (mid_pair != nullptr) {
-    page_id_t new_root_pid;
-    bpm_->NewPageGuarded(&new_root_pid);
-    WritePageGuard new_root_guard = bpm_->FetchPageWrite(new_root_pid);
-    auto new_root = reinterpret_cast<InternalPage *>(new_root_guard.AsMut<BPlusTreePage>());
-    new_root->Init(internal_max_size_);
-    new_root->InsertAt(mid_pair->first, root_pid, 0);
-    new_root->InsertAt(mid_pair->first, mid_pair->second, 1);
-    new_root_guard.Drop();
-    header->root_page_id_ = new_root_pid;
-    parents.pop_back();
+    MakeNewRoot(header, mid_pair->first, mid_pair->second);
   }
   return true;
 }
@@ -168,6 +151,118 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
 /*****************************************************************************
  * INSERTION HELPER FUNCTIONS
  *****************************************************************************/
+
+/**
+ * @brief Check if leaf contains the given key
+ *
+ * @param leaf
+ * @param key
+ * @return true
+ * @return false
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::Contains(LeafPage *leaf, KeyType key) -> bool {
+  for (int i = 0; i < leaf->GetSize(); i++) {
+    if (comparator_(key, leaf->KeyAt(i)) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * @brief Create a new root and update its id in header
+ *
+ * @param header
+ * @param key
+ * @param value
+ * @return INDEX_TEMPLATE_ARGUMENTS
+ */
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::MakeNewRoot(BPlusTreeHeaderPage *header, KeyType key, page_id_t value) {
+  page_id_t new_root_pid;
+  bpm_->NewPageGuarded(&new_root_pid);
+  WritePageGuard new_root_guard = bpm_->FetchPageWrite(new_root_pid);
+  auto new_root = reinterpret_cast<InternalPage *>(new_root_guard.AsMut<BPlusTreePage>());
+  new_root->Init(internal_max_size_);
+  new_root->InsertAt(key, header->root_page_id_, 0);
+  new_root->InsertAt(key, value, 1);
+  header->root_page_id_ = new_root_pid;
+}
+
+/**
+ * @brief Insert or split and insert to leaf depending on size of the leaf
+ *
+ * @param leaf
+ * @param key
+ * @param value
+ * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::SplitInsertLeaf(LeafPage *leaf, KeyType key, ValueType value)
+    -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
+  if (leaf->GetSize() < leaf->GetMaxSize()) {
+    // insert directly
+    InsertToLeaf(leaf, key, value);
+    return nullptr;
+  }
+  // split then insert
+  page_id_t leaf2_pid;
+  bpm_->NewPageGuarded(&leaf2_pid);
+  WritePageGuard leaf2_guard = bpm_->FetchPageWrite(leaf2_pid);
+  auto leaf2 = reinterpret_cast<LeafPage *>(leaf2_guard.AsMut<BPlusTreePage>());
+  leaf2->Init(leaf_max_size_);
+
+  int mid_index = (leaf->GetMaxSize()) / 2;
+  if (comparator_(key, leaf->KeyAt(mid_index)) < 0) {
+    leaf->Spill(leaf2, leaf2_pid, mid_index);
+    InsertToLeaf(leaf, key, value);
+  } else {
+    leaf->Spill(leaf2, leaf2_pid, mid_index + 1);
+    InsertToLeaf(leaf2, key, value);
+  }
+  return std::make_shared<std::pair<KeyType, page_id_t>>(leaf2->KeyAt(0), leaf2_pid);
+}
+
+/**
+ * @brief Insert or split and insert to internal page depending on size of the page
+ *
+ * @param parent
+ * @param key
+ * @param value
+ * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ */
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::SplitInsertInternal(InternalPage *parent, KeyType key, page_id_t value)
+    -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
+  if (parent->GetSize() < parent->GetMaxSize()) {
+    // insert directly
+    InsertToInternal(parent, key, value);
+    return nullptr;
+  }
+  // create new leaf
+  page_id_t parent2_pid;
+  bpm_->NewPageGuarded(&parent2_pid);
+  WritePageGuard parent2_guard = bpm_->FetchPageWrite(parent2_pid);
+  auto parent2 = reinterpret_cast<InternalPage *>(parent2_guard.AsMut<BPlusTreePage>());
+  parent2->Init(internal_max_size_);
+  // split then insert
+  if (parent->GetMaxSize() == 3) {
+    InsertToInternal(parent, key, value);
+    parent->Spill(parent2, 2);
+  } else {
+    int mid_index = (parent->GetMaxSize()) / 2;
+    if (comparator_(key, parent->KeyAt(mid_index)) < 0) {
+      parent->Spill(parent2, mid_index);
+      InsertToInternal(parent, key, value);
+    } else {
+      parent->Spill(parent2, mid_index + 1);
+      InsertToInternal(parent2, key, value);
+    }
+  }
+  return std::make_shared<std::pair<KeyType, page_id_t>>(parent2->KeyAt(0), parent2_pid);
+}
+
 /**
  * @brief Inserts a key value pair to leaf.
  * @note  The provided leaf must be write latched.
@@ -201,48 +296,6 @@ void BPLUSTREE_TYPE::InsertToInternal(InternalPage *parent, KeyType key, page_id
     index++;
   }
   parent->InsertAt(key, value, index);
-}
-
-/**
- * @brief Splits a leaf into 2
- *
- * @param leaf_pid
- * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
- */
-INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::SplitInsert(LeafPage *leaf, KeyType key, ValueType value)
-    -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
-  page_id_t leaf2_pid;
-  auto leaf_page = bpm_->NewPageGuarded(&leaf2_pid);
-  WritePageGuard leaf2_guard = bpm_->FetchPageWrite(leaf2_pid);
-  auto leaf2 = reinterpret_cast<LeafPage *>(leaf2_guard.AsMut<BPlusTreePage>());
-  leaf2->Init(leaf_max_size_);
-
-  auto mid_key = leaf->Spill(leaf2, leaf2_pid);
-  if (comparator_(key, mid_key) < 0) {
-    InsertToLeaf(leaf, key, value);
-  } else {
-    InsertToLeaf(leaf2, key, value);
-  }
-  return std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, leaf2_pid);
-}
-
-/**
- * @brief Splits an internal page into 2
- *
- * @param node_pid
- * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
- */
-INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::SplitInternal(InternalPage *node) -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
-  page_id_t node2_pid;
-  auto node_page = bpm_->NewPageGuarded(&node2_pid);
-  WritePageGuard node2_guard = bpm_->FetchPageWrite(node2_pid);
-  auto node2 = reinterpret_cast<InternalPage *>(node2_guard.AsMut<BPlusTreePage>());
-  node2->Init(internal_max_size_);
-
-  auto mid_key = node->Spill(node2);
-  return std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, node2_pid);
 }
 
 /*****************************************************************************

@@ -181,9 +181,9 @@ TEST(BPlusTreeTests, DeleteRandom) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 300; i > 45; i--) {
-    // auto r = dist(mt);
-    keys.push_back(i);
+  for (int i = 5000; i > 45; i--) {
+    auto r = dist(mt);
+    keys.push_back(r);
   }
 
   // Insert random keys into tree
@@ -192,7 +192,7 @@ TEST(BPlusTreeTests, DeleteRandom) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
-    std::cout << tree.DrawBPlusTree() << std::endl;
+    // std::cout << tree.DrawBPlusTree() << std::endl;
   }
 
   index_key.SetFromInteger(45);
@@ -449,12 +449,12 @@ TEST(BPlusTreeTests, DeleteTest2) {
     EXPECT_EQ(rids[0].GetSlotNum(), value);
   }
 
-  std::cout << tree.DrawBPlusTree() << std::endl;
+  // std::cout << tree.DrawBPlusTree() << std::endl;
   std::vector<int64_t> remove_keys = {1, 5, 3, 4};
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
-    std::cout << tree.DrawBPlusTree() << std::endl;
+    // std::cout << tree.DrawBPlusTree() << std::endl;
     tree.Print(bpm);
     EXPECT_EQ(tree.GetValue(index_key, nullptr), false);
   }

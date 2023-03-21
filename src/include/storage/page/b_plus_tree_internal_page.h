@@ -92,7 +92,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
    * @param node2
    * @return KeyType
    */
-  auto Spill(BPlusTreeInternalPage *node2) -> KeyType;
+  auto Spill(BPlusTreeInternalPage *node2, int mid_index) -> KeyType;
 
   /**
    * @brief Remove a new element from the array. Shift all elements after index by 1. Before calling this function, it

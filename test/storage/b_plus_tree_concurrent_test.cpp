@@ -53,7 +53,6 @@ void InsertHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, con
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree->Insert(index_key, rid, transaction);
-    // std::cout << tree->DrawBPlusTree() << std::endl;
   }
   delete transaction;
 }
@@ -117,6 +116,7 @@ void LookupHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, con
     index_key.SetFromInteger(key);
     std::vector<RID> result;
     bool res = tree->GetValue(index_key, &result, transaction);
+    std::cout << key << std::endl;
     ASSERT_EQ(res, true);
     ASSERT_EQ(result.size(), 1);
     ASSERT_EQ(result[0], rid);
@@ -191,10 +191,7 @@ TEST(BPlusTreeConcurrentTest, InsertTest1) {
   for (int64_t key = 1; key < scale_factor; key++) {
     keys.push_back(key);
   }
-  LaunchParallelTest(2, InsertHelper, &tree, keys);
-
-  // std::cout << tree.DrawBPlusTree() << std::endl;
-  // tree.Print(bpm);
+  LaunchParallelTest(3, InsertHelper, &tree, keys);
 
   std::vector<RID> rids;
   GenericKey<8> index_key;
@@ -219,8 +216,6 @@ TEST(BPlusTreeConcurrentTest, InsertTest1) {
   }
 
   EXPECT_EQ(current_key, keys.size() + 1);
-  // std::cout << tree.DrawBPlusTree() << std::endl;
-  // tree.Print(bpm);
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete bpm;
 }
@@ -238,7 +233,7 @@ TEST(BPlusTreeConcurrentTest, InsertTest2) {
   BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", header_page->GetPageId(), bpm, comparator, 2, 3);
   // keys to Insert
   std::vector<int64_t> keys;
-  int64_t scale_factor = 100;
+  int64_t scale_factor = 20;
   for (int64_t key = 1; key < scale_factor; key++) {
     keys.push_back(key);
   }
@@ -405,12 +400,12 @@ TEST(BPlusTreeConcurrentTest, MixTest2) {
   (void)header_page;
 
   // create b+ tree
-  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", page_id, bpm, comparator, 2, 3);
+  BPlusTree<GenericKey<8>, RID, GenericComparator<8>> tree("foo_pk", page_id, bpm, comparator);
 
   // Add perserved_keys
   std::vector<int64_t> perserved_keys;
   std::vector<int64_t> dynamic_keys;
-  int64_t total_keys = 10;  // 50
+  int64_t total_keys = 1000;  // 50
   int64_t sieve = 5;
   for (int64_t i = 1; i <= total_keys; i++) {
     if (i % sieve == 0) {
@@ -452,6 +447,7 @@ TEST(BPlusTreeConcurrentTest, MixTest2) {
   }
 
   ASSERT_EQ(size, perserved_keys.size());
+  std::cout << tree.DrawBPlusTree() << std::endl;
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete bpm;

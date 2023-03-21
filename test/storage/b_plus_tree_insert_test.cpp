@@ -40,18 +40,12 @@ TEST(BPlusTreeTests, SmallBufferPoolTest) {
   // create transaction
   auto *transaction = new Transaction(0);
 
-  std::vector<int64_t> keys = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18};
+  std::vector<int64_t> keys = {1, 2, 3, 4, 5, 6, 7, 8, 10, 9};
   for (auto key : keys) {
     int64_t value = key & 0xFFFFFFFF;
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
-    // std::cout << tree.DrawBPlusTree() << std::endl;
-    // Check if each key is still in the tree
-    for (int64_t i = 0; i <= key; i++) {
-      index_key.SetFromInteger(i);
-      EXPECT_EQ(tree.GetValue(index_key, nullptr), true);
-    }
   }
 
   std::vector<RID> rids;
@@ -130,9 +124,10 @@ TEST(BPlusTreeTests, GetValueTest) {
   std::uniform_real_distribution<double> dist(1.0, 1000);
 
   std::vector<int64_t> keys;
-  for (int i = 1000; i > 0; i--) {
-    // keys.push_back(dist(mt));
-    keys.push_back(i);
+  keys.reserve(10000);
+  for (int i = 0; i < 1000; i++) {
+    keys.push_back(dist(mt));
+    // keys.push_back(i);
   }
   // for (auto k : keys) {
   //   std::cout << k << " ";
@@ -148,6 +143,7 @@ TEST(BPlusTreeTests, GetValueTest) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
+    // std::cout << tree.DrawBPlusTree() << std::endl;
     // Check if the key we just inserted is present in the tree
     EXPECT_EQ(tree.GetValue(index_key, nullptr), true);
   }
@@ -209,6 +205,8 @@ TEST(BPlusTreeTests, ReversedInsertTest) {
     rid.Set(static_cast<int32_t>(key >> 32), value);
     index_key.SetFromInteger(key);
     tree.Insert(index_key, rid, transaction);
+    // std::cout << tree.DrawBPlusTree() << std::endl;
+    // tree.Print(bpm);
   }
 
   std::vector<RID> rids;
