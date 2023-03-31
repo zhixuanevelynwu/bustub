@@ -38,6 +38,8 @@ auto TableIterator::GetRID() -> RID { return rid_; }
 auto TableIterator::IsEnd() -> bool { return rid_.GetPageId() == INVALID_PAGE_ID; }
 
 auto TableIterator::operator++() -> TableIterator & {
+  // std::cout << "current: " << rid_.GetPageId() << ", "
+  //           << "stop_at: " << stop_at_rid_.GetPageId() << std::endl;
   auto page_guard = table_heap_->bpm_->FetchPageRead(rid_.GetPageId());
   auto page = page_guard.As<TablePage>();
   auto next_tuple_id = rid_.GetSlotNum() + 1;
@@ -49,7 +51,6 @@ auto TableIterator::operator++() -> TableIterator & {
       "iterate out of bound");
 
   rid_ = RID{rid_.GetPageId(), next_tuple_id};
-
   if (rid_ == stop_at_rid_) {
     rid_ = RID{INVALID_PAGE_ID, 0};
   } else if (next_tuple_id < page->GetNumTuples()) {
