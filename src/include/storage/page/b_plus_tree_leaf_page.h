@@ -61,7 +61,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   auto KeyAt(int index) const -> KeyType;
   auto ValueAt(int index) const -> ValueType;
   auto InsertAt(KeyType key, ValueType value, int index) -> bool;
-  void Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2_id, int mid_index);
+  auto Spill(BPlusTreeLeafPage *leaf2, page_id_t leaf2_id) -> KeyType;
   void RemoveAt(int index);
   auto BorrowFrom(BPlusTreeLeafPage *neighbor, bool is_left) -> KeyType;
   auto Merge(BPlusTreeLeafPage *neighbor) -> KeyType;
