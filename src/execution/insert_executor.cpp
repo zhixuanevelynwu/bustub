@@ -49,11 +49,21 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   int count = 0;
   Tuple t;
   RID r;
-  auto table_meta = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
+  auto catalog = exec_ctx_->GetCatalog();
+  auto table_meta = catalog->GetTable(plan_->TableOid());
+  auto indexes = catalog->GetTableIndexes(table_meta->name_);
+
   while (child_exec_->Next(&t, &r)) {
     TupleMeta m;
     m.is_deleted_ = false;
     table_meta->table_->InsertTuple(m, t);
+    for (auto index_meta : indexes) {
+      // Update index
+      auto key_schema = index_meta->key_schema_;
+      auto col_idx = table_meta->schema_.GetColIdx(key_schema.GetColumn(0).GetName());
+      auto key = t.GetValue(&key_schema, col_idx);
+      index_meta->index_->InsertEntry(t, t.GetRid(), nullptr);
+    }
     count++;
   }
   std::vector<Value> vec(1, Value(INTEGER, count));
