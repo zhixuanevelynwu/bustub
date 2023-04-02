@@ -52,11 +52,12 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   int count = 0;
   while (child_executor_->Next(&t, &r)) {
     const TupleMeta tuple_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
-    table_meta->table_->InsertTuple(tuple_meta, t);
+    const auto new_rid = table_meta->table_->InsertTuple(tuple_meta, t);
+    BUSTUB_ASSERT(new_rid, "InsertTuple() should not return nullptr.");
     // Update indexes (if any)
     for (auto index_meta : indexes) {
       auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
-      index_meta->index_->InsertEntry(t, t.GetRid(), nullptr);
+      index_meta->index_->InsertEntry(key, *new_rid, nullptr);
     }
     count++;
   }

@@ -56,11 +56,15 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       vec.emplace_back(expr->Evaluate(&t, child_executor_->GetOutputSchema()));
     }
     Tuple new_tuple = Tuple(vec, &child_executor_->GetOutputSchema());
-    table_meta->table_->InsertTuple(new_meta, new_tuple);
+    auto new_rid = table_meta->table_->InsertTuple(new_meta, new_tuple);
+    BUSTUB_ASSERT(new_rid, "Insertion failed");
     // Update indexes (if any)
     for (auto index_meta : indexes) {
-      auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
-      index_meta->index_->InsertEntry(t, t.GetRid(), nullptr);
+      auto old_key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
+      index_meta->index_->DeleteEntry(old_key, r, nullptr);
+      auto key =
+          new_tuple.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
+      index_meta->index_->InsertEntry(key, *new_rid, nullptr);
     }
     count++;
   }

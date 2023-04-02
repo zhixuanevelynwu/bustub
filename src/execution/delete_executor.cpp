@@ -36,7 +36,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // Update indexes (if any)
     for (auto index_meta : indexes) {
       auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
-      index_meta->index_->DeleteEntry(t, t.GetRid(), nullptr);
+      index_meta->index_->DeleteEntry(key, r, nullptr);
     }
     count++;
   }
