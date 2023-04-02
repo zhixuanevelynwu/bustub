@@ -21,6 +21,9 @@ INDEXITERATOR_TYPE::~IndexIterator(){};  // NOLINT
 // Return whether this iterator is pointing at the last key/value pair.
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::IsEnd() -> bool {
+  if (current_pid_ == INVALID_PAGE_ID) {
+    return true;
+  }
   ReadPageGuard read_guard = bpm_->FetchPageRead(current_pid_);
   auto page = read_guard.As<BPlusTreePage>();
   auto leaf_page = reinterpret_cast<const BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *>(page);
