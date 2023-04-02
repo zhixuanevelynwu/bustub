@@ -32,45 +32,39 @@ namespace bustub {
  */
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_exec_(std::move(child_executor)) {}
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
-void InsertExecutor::Init() { child_exec_->Init(); }
+void InsertExecutor::Init() { child_executor_->Init(); }
 
 /**
  * Yield the number of rows inserted into the table.
  * @param[out] tuple The integer tuple indicating the number of rows inserted into the table
- * @param[out] rid The next tuple RID produced by the insert (ignore, not used)
  * @return `true` if a tuple was produced, `false` if there are no more tuples
- *
- * NOTE: InsertExecutor::Next() does not use the `rid` out-parameter.
  * NOTE: InsertExecutor::Next() returns true with number of inserted rows produced only once.
  */
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  int count = 0;
   Tuple t;
   RID r;
   auto catalog = exec_ctx_->GetCatalog();
   auto table_meta = catalog->GetTable(plan_->TableOid());
   auto indexes = catalog->GetTableIndexes(table_meta->name_);
-
-  while (child_exec_->Next(&t, &r)) {
-    TupleMeta m;
-    m.is_deleted_ = false;
-    table_meta->table_->InsertTuple(m, t);
+  // Insert tuples into table
+  int count = 0;
+  while (child_executor_->Next(&t, &r)) {
+    const TupleMeta tuple_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
+    table_meta->table_->InsertTuple(tuple_meta, t);
+    // Update indexes (if any)
     for (auto index_meta : indexes) {
-      // Update index
-      auto key_schema = index_meta->key_schema_;
-      auto col_idx = table_meta->schema_.GetColIdx(key_schema.GetColumn(0).GetName());
-      auto key = t.GetValue(&key_schema, col_idx);
+      auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
       index_meta->index_->InsertEntry(t, t.GetRid(), nullptr);
     }
     count++;
   }
+  // Emit number of inserted rows
   std::vector<Value> vec(1, Value(INTEGER, count));
   const std::vector<Column> cols(1, Column("count", INTEGER));
   const auto s = Schema(cols);
   *tuple = Tuple(vec, &s);
-
   if (!inserted_) {
     inserted_ = true;
     return true;
