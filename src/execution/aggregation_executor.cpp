@@ -35,10 +35,13 @@ void AggregationExecutor::Init() {
   RID r;
   // build the hash table
   while (child_->Next(&t, &r)) {
-    std::cout << t.ToString(&child_->GetOutputSchema()) << std::endl;
     aht_.InsertCombine(MakeAggregateKey(&t), MakeAggregateValue(&t));
   }
   aht_iterator_ = aht_.Begin();
+  if (aht_iterator_ == aht_.End()) {
+    aht_.InsertEmpty(MakeAggregateKey(nullptr));
+    aht_iterator_ = aht_.Begin();
+  }
 }
 
 /**
