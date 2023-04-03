@@ -39,7 +39,10 @@ void AggregationExecutor::Init() {
   }
   aht_iterator_ = aht_.Begin();
   if (aht_iterator_ == aht_.End()) {
-    aht_.InsertEmpty(MakeAggregateKey(nullptr));
+    if (!plan_->GetGroupBys().empty()) {
+      return;
+    }
+    aht_.InsertEmpty();
     aht_iterator_ = aht_.Begin();
   }
 }
@@ -53,10 +56,9 @@ void AggregationExecutor::Init() {
 auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   if (aht_iterator_ != aht_.End()) {
     std::vector<Value> vec;
-    // the output schema consists of the group-by columns followed by the aggregation columns
     vec.insert(vec.end(), aht_iterator_.Key().group_bys_.begin(), aht_iterator_.Key().group_bys_.end());
     vec.insert(vec.end(), aht_iterator_.Val().aggregates_.begin(), aht_iterator_.Val().aggregates_.end());
-    *tuple = {vec, &plan_->OutputSchema()};
+    *tuple = {vec, &GetOutputSchema()};
     ++aht_iterator_;
     return true;
   }

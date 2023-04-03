@@ -196,8 +196,8 @@ auto main(int argc, char **argv) -> int {  // NOLINT
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.04-delete.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.05-index-scan.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.06-empty-table.slt";
-  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.07-simple-agg.slt";
-
+  // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.07-simple-agg.slt";
+  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.08-group-agg-1.slt";
   std::ifstream t(filename);
 
   if (!t) {

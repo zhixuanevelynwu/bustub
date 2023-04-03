@@ -129,12 +129,10 @@ class SimpleAggregationHashTable {
     CombineAggregateValues(&ht_[agg_key], agg_val);
   }
 
-  /**
-   * Inserts a value into the hash table and then combines it with the current aggregation.
-   * @param agg_key the key to be inserted
-   * @param agg_val the value to be inserted
-   */
-  void InsertEmpty(const AggregateKey &agg_key) { ht_.insert({agg_key, GenerateInitialAggregateValue()}); }
+  auto InsertEmpty() {
+    std::vector<Value> keys;
+    ht_.insert({{keys}, GenerateInitialAggregateValue()});
+  }
 
   /**
    * Clear the hash table
