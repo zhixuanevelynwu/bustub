@@ -18,11 +18,47 @@ namespace bustub {
 
 AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const AggregationPlanNode *plan,
                                          std::unique_ptr<AbstractExecutor> &&child)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx),
+      plan_(plan),
+      child_{std::move(child)},
+      aht_({plan->aggregates_, plan->agg_types_}),
+      aht_iterator_({aht_.Begin()}) {}
 
-void AggregationExecutor::Init() {}
+/**
+ * @brief Carefully decide whether the build phase of the aggregation should be performed in AggregationExecutor::Init()
+ * or AggregationExecutor::Next().
+ *
+ */
+void AggregationExecutor::Init() {
+  child_->Init();
+  Tuple t;
+  RID r;
+  // build the hash table
+  while (child_->Next(&t, &r)) {
+    std::cout << t.ToString(&child_->GetOutputSchema()) << std::endl;
+    aht_.InsertCombine(MakeAggregateKey(&t), MakeAggregateValue(&t));
+  }
+  aht_iterator_ = aht_.Begin();
+}
 
-auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+/**
+ * Yield the next tuple from the insert.
+ * @param[out] tuple The next tuple produced by the aggregation
+ * @param[out] rid The next tuple RID produced by the aggregation
+ * @return `true` if a tuple was produced, `false` if there are no more tuples
+ */
+auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  if (aht_iterator_ != aht_.End()) {
+    std::vector<Value> vec;
+    // the output schema consists of the group-by columns followed by the aggregation columns
+    vec.insert(vec.end(), aht_iterator_.Key().group_bys_.begin(), aht_iterator_.Key().group_bys_.end());
+    vec.insert(vec.end(), aht_iterator_.Val().aggregates_.begin(), aht_iterator_.Val().aggregates_.end());
+    *tuple = {vec, &plan_->OutputSchema()};
+    ++aht_iterator_;
+    return true;
+  }
+  return false;
+}
 
 auto AggregationExecutor::GetChildExecutor() const -> const AbstractExecutor * { return child_.get(); }
 
