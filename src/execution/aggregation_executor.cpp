@@ -38,13 +38,12 @@ void AggregationExecutor::Init() {
     aht_.InsertCombine(MakeAggregateKey(&t), MakeAggregateValue(&t));
   }
   aht_iterator_ = aht_.Begin();
-  if (aht_iterator_ == aht_.End()) {
-    if (!plan_->GetGroupBys().empty()) {
-      return;
-    }
+  // populate empty tuple if no group by
+  if (aht_iterator_ == aht_.End() && plan_->GetGroupBys().empty()) {
     aht_.InsertEmpty();
     aht_iterator_ = aht_.Begin();
   }
+  // no groups, no output
 }
 
 /**
