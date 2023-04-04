@@ -47,8 +47,20 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto l_schema = plan_->GetLeftPlan()->OutputSchema();
   auto r_schema = plan_->GetRightPlan()->OutputSchema();
   while (has_left_tuple_) {
-    // wrap-around
-    if (right_tuples_iterator_ >= right_tuples_.end()) {
+    if (right_tuples_iterator_ >= right_tuples_.end()) {  // wrap-around
+      // left join on non-matching tuple
+      if (plan_->GetJoinType() == JoinType::LEFT && !matched_) {
+        matched_ = true;
+        std::vector<Value> vec;
+        for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
+          vec.emplace_back(left_tuple_.GetValue(&l_schema, i));
+        }
+        for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
+          vec.emplace_back(ValueFactory::GetNullValueByType(r_schema.GetColumn(i).GetType()));
+        }
+        *tuple = {vec, &plan_->OutputSchema()};
+        return true;
+      }
       matched_ = false;
       right_executor_->Init();
       right_tuples_iterator_ = right_tuples_.begin();
@@ -75,18 +87,6 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       return true;
     }
     right_tuples_iterator_ = right_tuples_.end();
-    // left join on non-matching tuple
-    if (plan_->GetJoinType() == JoinType::LEFT && !matched_) {
-      std::vector<Value> vec;
-      for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
-        vec.emplace_back(left_tuple_.GetValue(&l_schema, i));
-      }
-      for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
-        vec.emplace_back(ValueFactory::GetNullValueByType(r_schema.GetColumn(i).GetType()));
-      }
-      *tuple = {vec, &plan_->OutputSchema()};
-      return true;
-    }
   }
   return false;
 }
