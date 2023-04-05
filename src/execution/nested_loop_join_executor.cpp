@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/nested_loop_join_executor.h"
+#include <vector>
 #include "binder/table_ref/bound_join_ref.h"
 #include "common/exception.h"
 #include "type/value_factory.h"
@@ -33,62 +34,52 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
 void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
-  Tuple right_tuple;
-  RID r1;
-  RID r2;
-  has_left_tuple_ = left_executor_->Next(&left_tuple_, &r1);
-  while (right_executor_->Next(&right_tuple, &r2)) {
-    right_tuples_.emplace_back(right_tuple);
+  auto l_schema = plan_->GetLeftPlan()->OutputSchema();
+  auto r_schema = plan_->GetRightPlan()->OutputSchema();
+  Tuple left_tuple;
+  RID r;
+  std::vector<Tuple> right_tuples;
+  Tuple t;
+  while (right_executor_->Next(&t, &r)) {
+    right_tuples.emplace_back(t);
   }
-  right_tuples_iterator_ = right_tuples_.begin();
+  while (left_executor_->Next(&left_tuple, &r)) {
+    bool matched = false;
+    right_executor_->Init();
+    for (auto &right_tuple : right_tuples) {
+      if (plan_->Predicate()->EvaluateJoin(&left_tuple, l_schema, &right_tuple, r_schema).GetAs<bool>()) {
+        matched = true;
+        std::vector<Value> vec;
+        for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
+          vec.emplace_back(left_tuple.GetValue(&l_schema, i));
+        }
+        for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
+          vec.emplace_back(right_tuple.GetValue(&r_schema, i));
+        }
+        result_.emplace_back(vec, &plan_->OutputSchema());
+      }
+    }
+    if (plan_->GetJoinType() == JoinType::LEFT && !matched) {
+      std::vector<Value> vec;
+      for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
+        vec.emplace_back(left_tuple.GetValue(&l_schema, i));
+      }
+      for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
+        vec.emplace_back(ValueFactory::GetNullValueByType(r_schema.GetColumn(i).GetType()));
+      }
+      result_.emplace_back(vec, &plan_->OutputSchema());
+    }
+  }
+  result_iter_ = result_.begin();
 }
 
 auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  auto l_schema = plan_->GetLeftPlan()->OutputSchema();
-  auto r_schema = plan_->GetRightPlan()->OutputSchema();
-  while (has_left_tuple_) {
-    if (right_tuples_iterator_ >= right_tuples_.end()) {  // wrap-around
-      // left join on non-matching tuple
-      if (plan_->GetJoinType() == JoinType::LEFT && !matched_) {
-        matched_ = true;
-        std::vector<Value> vec;
-        for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
-          vec.emplace_back(left_tuple_.GetValue(&l_schema, i));
-        }
-        for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
-          vec.emplace_back(ValueFactory::GetNullValueByType(r_schema.GetColumn(i).GetType()));
-        }
-        *tuple = {vec, &plan_->OutputSchema()};
-        return true;
-      }
-      matched_ = false;
-      right_executor_->Init();
-      right_tuples_iterator_ = right_tuples_.begin();
-      if (!left_executor_->Next(&left_tuple_, rid)) {
-        return false;
-      }
-    }
-    // inner join on predicate
-    for (auto iter = right_tuples_iterator_; iter != right_tuples_.end(); ++iter) {
-      auto right_tuple = *iter;
-      if (!plan_->Predicate()->EvaluateJoin(&left_tuple_, l_schema, &right_tuple, r_schema).GetAs<bool>()) {
-        continue;
-      }
-      matched_ = true;
-      std::vector<Value> vec;
-      for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
-        vec.emplace_back(left_tuple_.GetValue(&l_schema, i));
-      }
-      for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
-        vec.emplace_back(right_tuple.GetValue(&r_schema, i));
-      }
-      *tuple = {vec, &plan_->OutputSchema()};
-      right_tuples_iterator_ = ++iter;
-      return true;
-    }
-    right_tuples_iterator_ = right_tuples_.end();
+  if (result_iter_ == result_.end()) {
+    return false;
   }
-  return false;
+  *tuple = *result_iter_;
+  ++result_iter_;
+  return true;
 }
 
 }  // namespace bustub
