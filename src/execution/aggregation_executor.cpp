@@ -58,6 +58,7 @@ auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     vec.insert(vec.end(), aht_iterator_.Key().group_bys_.begin(), aht_iterator_.Key().group_bys_.end());
     vec.insert(vec.end(), aht_iterator_.Val().aggregates_.begin(), aht_iterator_.Val().aggregates_.end());
     *tuple = {vec, &GetOutputSchema()};
+    *rid = tuple->GetRid();
     ++aht_iterator_;
     return true;
   }
