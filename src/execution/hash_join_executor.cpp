@@ -91,15 +91,15 @@ void HashJoinExecutor::Init() {
       result_.emplace_back(vec, &plan_->OutputSchema());
     }
   }
-  result_iter_ = result_.begin();
+  iter_ = result_.begin();
 }
 
 auto HashJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (result_iter_ == result_.end()) {
+  if (iter_ == result_.end()) {
     return false;
   }
-  *tuple = *result_iter_;
-  ++result_iter_;
+  *tuple = *iter_;
+  ++iter_;
   return true;
 }
 
