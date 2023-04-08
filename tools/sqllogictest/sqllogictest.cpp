@@ -201,8 +201,9 @@ auto main(int argc, char **argv) -> int {  // NOLINT
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.09-group-agg-2.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.10-simple-join.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.11-multi-way-join.slt";
-  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.12-repeat-execute.slt";
+  // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.12-repeat-execute.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.14-hash-join.slt";
+  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.15-multi-way-hash-join.slt";
   std::ifstream t(filename);
 
   if (!t) {

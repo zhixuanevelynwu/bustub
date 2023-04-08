@@ -268,6 +268,13 @@ insert into temp_2 values
     (99, 722, 9);
 
 
+# Composite Key
+query rowsort +ensure:hash_join
+select * from temp_1 t1 inner join temp_2 t2 on t1.colB = t2.colA and t1.colA = t2.colC ;
+----
+8 8 3074 56174 8 194 8
+
+
 statement ok
 create table temp_3(colA int, colB int);
 

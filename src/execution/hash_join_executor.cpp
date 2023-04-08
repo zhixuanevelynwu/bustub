@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/hash_join_executor.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -41,6 +42,7 @@ void HashJoinExecutor::Init() {
   RID r;
   while (right_executor_->Next(&t, &r)) {
     std::vector<Value> join_keys;
+    join_keys.reserve(r_expression.size());
     for (auto &expr : r_expression) {
       join_keys.emplace_back(expr->Evaluate(&t, r_schema));
     }
@@ -49,22 +51,24 @@ void HashJoinExecutor::Init() {
 
   // Phase #2: Iterate over the left table and probe the hash table
   Tuple left_tuple;
-  std::vector<Value> left_keys;
-  std::vector<Value> right_keys;
-  left_keys.reserve(l_expression.size());
-  right_keys.reserve(r_expression.size());
   while (left_executor_->Next(&left_tuple, &r)) {
+    bool matched = false;
+    std::vector<Value> left_keys;
+    left_keys.reserve(l_expression.size());
     for (auto &expr : l_expression) {
       left_keys.emplace_back(expr->Evaluate(&left_tuple, l_schema));
     }
     HashJoinKey left_key{left_keys};
     if (ht_.count(left_key) > 0) {
       for (auto &right_tuple : ht_[left_key]) {
+        std::vector<Value> right_keys;
+        right_keys.reserve(r_expression.size());
         for (auto &expr : r_expression) {
           right_keys.emplace_back(expr->Evaluate(&right_tuple, r_schema));
         }
         HashJoinKey right_key{right_keys};
         if (left_key == right_key) {
+          matched = true;
           std::vector<Value> vec;
           for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
             vec.emplace_back(left_tuple.GetValue(&l_schema, i));
@@ -76,7 +80,15 @@ void HashJoinExecutor::Init() {
         }
       }
     }
-    if (plan_->GetJoinType() == JoinType::LEFT) {
+    if (plan_->GetJoinType() == JoinType::LEFT && !matched) {
+      std::vector<Value> vec;
+      for (uint32_t i = 0; i < l_schema.GetColumnCount(); i++) {
+        vec.emplace_back(left_tuple.GetValue(&l_schema, i));
+      }
+      for (uint32_t i = 0; i < r_schema.GetColumnCount(); i++) {
+        vec.emplace_back(ValueFactory::GetNullValueByType(r_schema.GetColumn(i).GetType()));
+      }
+      result_.emplace_back(vec, &plan_->OutputSchema());
     }
   }
   result_iter_ = result_.begin();

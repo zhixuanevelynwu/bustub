@@ -32,6 +32,7 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
 }
 
 void NestedLoopJoinExecutor::Init() {
+  // std::cout << plan_->Predicate()->ToString() << std::endl;
   left_executor_->Init();
   right_executor_->Init();
   auto l_schema = plan_->GetLeftPlan()->OutputSchema();
