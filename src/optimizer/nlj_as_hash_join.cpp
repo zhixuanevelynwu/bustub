@@ -18,6 +18,10 @@
 
 namespace bustub {
 
+/**
+ * @brief Construct a HashJoinPlanNode from a NestedLoopJoinPlanNode and a ComparisonExpression
+ *
+ */
 auto construct_hash_join_plan = [](const NestedLoopJoinPlanNode &nlj_plan,
                                    const ComparisonExpression *expr) -> std::shared_ptr<HashJoinPlanNode> {
   if (const auto *left_expr = dynamic_cast<const ColumnValueExpression *>(expr->children_[0].get());
@@ -44,10 +48,14 @@ auto construct_hash_join_plan = [](const NestedLoopJoinPlanNode &nlj_plan,
   return nullptr;
 };
 
-// TODO(student): implement NestedLoopJoin -> HashJoin optimizer rule
-// Note for 2023 Spring: You should at least support join keys of the form:
-// 1. <column expr> = <column expr>
-// 2. <column expr> = <column expr> AND <column expr> = <column expr>
+/**
+ * @brief Optimize nested loop join as hash join
+ * <column expr> = <column expr>
+ * <column expr> = <column expr> AND <column expr> = <column expr>
+ *
+ * @param plan
+ * @return AbstractPlanNodeRef
+ */
 auto Optimizer::OptimizeNLJAsHashJoin(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef {
   // std::cout << plan->ToString() << std::endl;
   std::vector<AbstractPlanNodeRef> children;
