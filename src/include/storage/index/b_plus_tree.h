@@ -78,8 +78,8 @@ class BPlusTree {
   auto Insert(const KeyType &key, const ValueType &value, Transaction *txn = nullptr) -> bool;
   void InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value);
   void InsertToInternal(InternalPage *parent, KeyType key, page_id_t value);
-  auto SplitInsert(LeafPage *leaf, KeyType key, ValueType value) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
-  auto SplitInternal(InternalPage *node) -> std::shared_ptr<std::pair<KeyType, page_id_t>>;
+  auto SplitInsert(LeafPage *leaf, KeyType key, ValueType value) -> std::pair<KeyType, page_id_t>;
+  auto SplitInternal(InternalPage *node) -> std::pair<KeyType, page_id_t>;
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *txn);

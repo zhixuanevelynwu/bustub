@@ -108,15 +108,16 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   // sink to the corresponding leaf
   ctx.write_set_.emplace_back(bpm_->FetchPageWrite(ctx.root_page_id_));
   auto current = (ctx.write_set_.back()).As<BPlusTreePage>();
-  page_id_t current_pid = ctx.root_page_id_;
+  if (current->GetSize() < current->GetMaxSize()) {
+    ctx.write_set_.pop_front();
+  }
   while (!current->IsLeafPage()) {
     auto current_internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
     while (comparator_(key, current_internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
       index++;
     }
-    current_pid = current_internal->ValueAt(index);
-    ctx.write_set_.emplace_back(bpm_->FetchPageWrite(current_pid));
+    ctx.write_set_.emplace_back(bpm_->FetchPageWrite(current_internal->ValueAt(index)));
     current = (ctx.write_set_.back()).As<BPlusTreePage>();
     // child is safe -> release parents here
     if (current->GetSize() < current->GetMaxSize()) {
@@ -132,7 +133,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       return false;
     }
   }
-  std::shared_ptr<std::pair<KeyType, page_id_t>> mid_pair = nullptr;
+  std::optional<std::pair<KeyType, page_id_t>> mid_pair = std::nullopt;
   if (leaf->GetSize() == leaf_max_size_) {
     mid_pair = SplitInsert(leaf, key, value);
     ctx.write_set_.pop_back();
@@ -146,7 +147,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       if (parent->GetSize() > internal_max_size_) {
         mid_pair = SplitInternal(parent);
       } else {
-        mid_pair = nullptr;
+        mid_pair = std::nullopt;
         break;
       }
       ctx.write_set_.pop_back();
@@ -156,7 +157,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     return true;
   }
   // change root if necessary
-  if (mid_pair != nullptr) {
+  if (mid_pair) {
     page_id_t new_root_pid;
     bpm_->NewPageGuarded(&new_root_pid);
     WritePageGuard new_root_guard = bpm_->FetchPageWrite(new_root_pid);
@@ -213,11 +214,10 @@ void BPLUSTREE_TYPE::InsertToInternal(InternalPage *parent, KeyType key, page_id
  * @brief Splits a leaf into 2
  *
  * @param leaf_pid
- * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ * @return
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::SplitInsert(LeafPage *leaf, KeyType key, ValueType value)
-    -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
+auto BPLUSTREE_TYPE::SplitInsert(LeafPage *leaf, KeyType key, ValueType value) -> std::pair<KeyType, page_id_t> {
   page_id_t leaf2_pid;
   auto leaf_page = bpm_->NewPageGuarded(&leaf2_pid);
   WritePageGuard leaf2_guard = bpm_->FetchPageWrite(leaf2_pid);
@@ -230,17 +230,17 @@ auto BPLUSTREE_TYPE::SplitInsert(LeafPage *leaf, KeyType key, ValueType value)
   } else {
     InsertToLeaf(leaf2, key, value);
   }
-  return std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, leaf2_pid);
+  return std::pair<KeyType, page_id_t>(mid_key, leaf2_pid);
 }
 
 /**
  * @brief Splits an internal page into 2
  *
  * @param node_pid
- * @return std::shared_ptr<std::pair<KeyType, page_id_t>>
+ * @return
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::SplitInternal(InternalPage *node) -> std::shared_ptr<std::pair<KeyType, page_id_t>> {
+auto BPLUSTREE_TYPE::SplitInternal(InternalPage *node) -> std::pair<KeyType, page_id_t> {
   page_id_t node2_pid;
   auto node_page = bpm_->NewPageGuarded(&node2_pid);
   WritePageGuard node2_guard = bpm_->FetchPageWrite(node2_pid);
@@ -248,7 +248,7 @@ auto BPLUSTREE_TYPE::SplitInternal(InternalPage *node) -> std::shared_ptr<std::p
   node2->Init(internal_max_size_);
 
   auto mid_key = node->Spill(node2);
-  return std::make_shared<std::pair<KeyType, page_id_t>>(mid_key, node2_pid);
+  return std::pair<KeyType, page_id_t>(mid_key, node2_pid);
 }
 
 /*****************************************************************************
@@ -274,6 +274,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   std::vector<int> indices;
   ctx.write_set_.emplace_back(bpm_->FetchPageWrite(ctx.root_page_id_));
   auto current = (ctx.write_set_.back()).As<const BPlusTreePage>();
+  if (current->GetSize() > current->GetMinSize()) {
+    ctx.write_set_.pop_front();
+  }
   // sink to the corresponding leaf
   while (!current->IsLeafPage()) {
     auto internal = reinterpret_cast<const InternalPage *>(current);
@@ -292,7 +295,6 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       indices.clear();
     }
   }
-
   // remove from leaf
   auto leaf = reinterpret_cast<LeafPage *>((ctx.write_set_.back()).AsMut<BPlusTreePage>());
   RemoveFromLeaf(leaf, key);
