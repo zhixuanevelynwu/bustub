@@ -40,6 +40,8 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return GetRootPageId() == INVALID
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn) -> bool {
+  // std::cout << this->DrawBPlusTree() << std::endl;
+  // this->Print(bpm_);
   Context ctx;
   ctx.read_set_.emplace_back(bpm_->FetchPageRead(header_page_id_));
   ctx.root_page_id_ = ctx.read_set_.back().As<BPlusTreeHeaderPage>()->root_page_id_;
@@ -50,11 +52,24 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   ctx.read_set_.pop_front();
   auto current = ctx.read_set_.back().As<BPlusTreePage>();
   while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
+    // binary search to the corresponding child
     auto internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
-    while (comparator_(key, internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
-      index++;
+    if (internal->GetSize() > 1) {
+      int l = 1;
+      int r = internal->GetSize() - 1;
+      while (l <= r) {
+        int mid = l + (r - l) / 2;
+        int cmp_result = mid == 0 ? 1 : comparator_(key, internal->KeyAt(mid));
+        if (cmp_result < 0) {
+          r = mid - 1;
+        } else {
+          index = mid;
+          l = mid + 1;
+        }
+      }
     }
+
     ctx.read_set_.emplace_back(bpm_->FetchPageRead(internal->ValueAt(index)));
     ctx.read_set_.pop_front();
     current = ctx.read_set_.back().As<BPlusTreePage>();
@@ -110,12 +125,24 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     ctx.write_set_.pop_front();
   }
   while (!current->IsLeafPage()) {
-    auto current_internal = reinterpret_cast<const InternalPage *>(current);
+    // binary search to the corresponding child
+    auto internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
-    while (comparator_(key, current_internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
-      index++;
+    if (internal->GetSize() > 1) {
+      int l = 1;
+      int r = internal->GetSize() - 1;
+      while (l <= r) {
+        int mid = l + (r - l) / 2;
+        int cmp_result = mid == 0 ? 1 : comparator_(key, internal->KeyAt(mid));
+        if (cmp_result < 0) {
+          r = mid - 1;
+        } else {
+          index = mid;
+          l = mid + 1;
+        }
+      }
     }
-    ctx.write_set_.emplace_back(bpm_->FetchPageWrite(current_internal->ValueAt(index)));
+    ctx.write_set_.emplace_back(bpm_->FetchPageWrite(internal->ValueAt(index)));
     current = (ctx.write_set_.back()).As<BPlusTreePage>();
     // child is safe -> release parents here
     if (current->GetSize() < current->GetMaxSize()) {
@@ -277,10 +304,22 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   }
   // sink to the corresponding leaf
   while (!current->IsLeafPage()) {
+    // binary search to the corresponding child
     auto internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
-    while (comparator_(key, internal->KeyAt(index + 1)) >= 0 && index < internal->GetSize() - 1) {
-      index++;
+    if (internal->GetSize() > 1) {
+      int l = 1;
+      int r = internal->GetSize() - 1;
+      while (l <= r) {
+        int mid = l + (r - l) / 2;
+        int cmp_result = mid == 0 ? 1 : comparator_(key, internal->KeyAt(mid));
+        if (cmp_result < 0) {
+          r = mid - 1;
+        } else {
+          index = mid;
+          l = mid + 1;
+        }
+      }
     }
     indices.emplace_back(index);
     ctx.write_set_.emplace_back(bpm_->FetchPageWrite(internal->ValueAt(index)));

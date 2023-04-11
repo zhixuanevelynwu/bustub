@@ -18,6 +18,20 @@
 
 namespace bustub {
 
+/**
+ * Acquire a lock on table_oid_t in the given lock_mode.
+ * If the transaction already holds a lock on the table, upgrade the lock
+ * to the specified lock_mode (if possible).
+ *
+ * This method should abort the transaction and throw a
+ * TransactionAbortException under certain circumstances.
+ * See [LOCK_NOTE] in header file.
+ *
+ * @param txn the transaction requesting the lock upgrade
+ * @param lock_mode the lock mode for the requested lock
+ * @param oid the table_oid_t of the table to be locked in lock_mode
+ * @return true if the upgrade is successful, false otherwise
+ */
 auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool { return true; }
 
 auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool { return true; }
