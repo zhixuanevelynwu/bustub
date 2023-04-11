@@ -17,7 +17,6 @@
 #include "concurrency/transaction_manager.h"
 
 namespace bustub {
-
 /**
  * Acquire a lock on table_oid_t in the given lock_mode.
  * If the transaction already holds a lock on the table, upgrade the lock
@@ -32,7 +31,25 @@ namespace bustub {
  * @param oid the table_oid_t of the table to be locked in lock_mode
  * @return true if the upgrade is successful, false otherwise
  */
-auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool { return true; }
+auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool {
+  std::shared_ptr<std::unordered_set<table_oid_t>> table_lock_set;
+  switch (lock_mode) {
+    // SHARED, EXCLUSIVE, INTENTION_SHARED, INTENTION_EXCLUSIVE, SHARED_INTENTION_EXCLUSIVE
+    case LockMode::SHARED:
+      // If requested lock mode is the same as that of the lock presently held, return true
+      if (txn->IsTableSharedLocked(oid)) {
+        return true;
+      }
+      // If requested lock mode is different, upgrade the lock held by the transaction
+      break;
+    case LockMode::EXCLUSIVE:
+    case LockMode::INTENTION_SHARED:
+    case LockMode::INTENTION_EXCLUSIVE:
+    case LockMode::SHARED_INTENTION_EXCLUSIVE:
+      break;
+  }
+  return true;
+}
 
 auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool { return true; }
 
@@ -66,5 +83,4 @@ void LockManager::RunCycleDetection() {
     }
   }
 }
-
 }  // namespace bustub
