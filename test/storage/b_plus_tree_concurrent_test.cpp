@@ -116,7 +116,7 @@ void LookupHelper(BPlusTree<GenericKey<8>, RID, GenericComparator<8>> *tree, con
     index_key.SetFromInteger(key);
     std::vector<RID> result;
     bool res = tree->GetValue(index_key, &result, transaction);
-    std::cout << key << std::endl;
+    // std::cout << key << std::endl;
     ASSERT_EQ(res, true);
     ASSERT_EQ(result.size(), 1);
     ASSERT_EQ(result[0], rid);
@@ -447,7 +447,7 @@ TEST(BPlusTreeConcurrentTest, MixTest2) {
   }
 
   ASSERT_EQ(size, perserved_keys.size());
-  std::cout << tree.DrawBPlusTree() << std::endl;
+  // std::cout << tree.DrawBPlusTree() << std::endl;
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete bpm;
