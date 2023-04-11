@@ -63,7 +63,6 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   auto leaf = reinterpret_cast<const LeafPage *>(current);
   int left = 0;
   int right = leaf->GetSize() - 1;
-  bool found = false;
   while (left <= right) {
     int mid = left + (right - left) / 2;
     int cmp_result = comparator_(key, leaf->KeyAt(mid));
@@ -71,8 +70,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
       if (result != nullptr) {
         result->emplace_back(leaf->ValueAt(mid));
       }
-      found = true;
-      break;
+      return true;
     }
     if (cmp_result < 0) {
       right = mid - 1;
@@ -80,7 +78,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
       left = mid + 1;
     }
   }
-  return found;
+  return false;
 }
 
 /*****************************************************************************
