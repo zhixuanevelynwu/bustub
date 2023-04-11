@@ -59,17 +59,28 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
     ctx.read_set_.pop_front();
     current = ctx.read_set_.back().As<BPlusTreePage>();
   }
-
+  // binary search to find the key
   auto leaf = reinterpret_cast<const LeafPage *>(current);
-  for (int i = 0; i < leaf->GetSize(); i++) {
-    if (comparator_(key, leaf->KeyAt(i)) == 0) {
+  int left = 0;
+  int right = leaf->GetSize() - 1;
+  bool found = false;
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    int cmp_result = comparator_(key, leaf->KeyAt(mid));
+    if (cmp_result == 0) {
       if (result != nullptr) {
-        result->emplace_back(leaf->ValueAt(i));
+        result->emplace_back(leaf->ValueAt(mid));
       }
-      return true;
+      found = true;
+      break;
+    }
+    if (cmp_result < 0) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
     }
   }
-  return false;
+  return found;
 }
 
 /*****************************************************************************
@@ -85,23 +96,19 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *txn) -> bool {
   Context ctx;
-  (void)ctx;
   // keep track of parent latches
-  std::vector<WritePageGuard> parents;
-  parents.emplace_back(bpm_->FetchPageWrite(header_page_id_));
-  auto header = (parents.back()).AsMut<BPlusTreeHeaderPage>();
-  auto root_pid = header->root_page_id_;
-  if (root_pid == INVALID_PAGE_ID) {
+  ctx.write_set_.emplace_back(bpm_->FetchPageWrite(header_page_id_));
+  auto header = (ctx.write_set_.back()).AsMut<BPlusTreeHeaderPage>();
+  ctx.root_page_id_ = header->root_page_id_;
+  if (ctx.root_page_id_ == INVALID_PAGE_ID) {
     auto leaf_id = StartNewTree(key, value);
     header->root_page_id_ = leaf_id;
     return true;
   }
-
-  parents.emplace_back(bpm_->FetchPageWrite(root_pid));
-  auto current = (parents.back()).As<BPlusTreePage>();
-  page_id_t current_pid = root_pid;
-
   // sink to the corresponding leaf
+  ctx.write_set_.emplace_back(bpm_->FetchPageWrite(ctx.root_page_id_));
+  auto current = (ctx.write_set_.back()).As<BPlusTreePage>();
+  page_id_t current_pid = ctx.root_page_id_;
   while (!current->IsLeafPage()) {
     auto current_internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
@@ -109,18 +116,17 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
       index++;
     }
     current_pid = current_internal->ValueAt(index);
-    parents.emplace_back(bpm_->FetchPageWrite(current_pid));
-    current = (parents.back()).As<BPlusTreePage>();
+    ctx.write_set_.emplace_back(bpm_->FetchPageWrite(current_pid));
+    current = (ctx.write_set_.back()).As<BPlusTreePage>();
     // child is safe -> release parents here
     if (current->GetSize() < current->GetMaxSize()) {
-      while (parents.size() > 1) {
-        parents.erase(parents.begin());
+      while (ctx.write_set_.size() > 1) {
+        ctx.write_set_.pop_front();
       }
     }
   }
-
   // insert at leaf
-  auto leaf = reinterpret_cast<LeafPage *>((parents.back()).AsMut<BPlusTreePage>());
+  auto leaf = reinterpret_cast<LeafPage *>((ctx.write_set_.back()).AsMut<BPlusTreePage>());
   for (int i = 0; i < leaf->GetSize(); i++) {
     if (comparator_(key, leaf->KeyAt(i)) == 0) {
       return false;
@@ -129,10 +135,10 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
   std::shared_ptr<std::pair<KeyType, page_id_t>> mid_pair = nullptr;
   if (leaf->GetSize() == leaf_max_size_) {
     mid_pair = SplitInsert(leaf, key, value);
-    parents.pop_back();
+    ctx.write_set_.pop_back();
     // insert spilled key/value pair to parents
-    while (!parents.empty()) {
-      auto parent = reinterpret_cast<InternalPage *>(parents.back().AsMut<BPlusTreePage>());
+    while (!ctx.write_set_.empty()) {
+      auto parent = reinterpret_cast<InternalPage *>(ctx.write_set_.back().AsMut<BPlusTreePage>());
       if (parent->GetPageType() != IndexPageType::INTERNAL_PAGE) {
         break;
       }
@@ -143,13 +149,12 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
         mid_pair = nullptr;
         break;
       }
-      parents.pop_back();
+      ctx.write_set_.pop_back();
     }
   } else {
     InsertToLeaf(leaf, key, value);
     return true;
   }
-
   // change root if necessary
   if (mid_pair != nullptr) {
     page_id_t new_root_pid;
@@ -157,11 +162,11 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     WritePageGuard new_root_guard = bpm_->FetchPageWrite(new_root_pid);
     auto new_root = reinterpret_cast<InternalPage *>(new_root_guard.AsMut<BPlusTreePage>());
     new_root->Init(internal_max_size_);
-    new_root->InsertAt(mid_pair->first, root_pid, 0);
+    new_root->InsertAt(mid_pair->first, ctx.root_page_id_, 0);
     new_root->InsertAt(mid_pair->first, mid_pair->second, 1);
     new_root_guard.Drop();
     header->root_page_id_ = new_root_pid;
-    parents.pop_back();
+    ctx.write_set_.pop_back();
   }
   return true;
 }
@@ -260,45 +265,36 @@ auto BPLUSTREE_TYPE::SplitInternal(InternalPage *node) -> std::shared_ptr<std::p
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
   Context ctx;
-  (void)ctx;
-  // return immediately if empty
-  if (IsEmpty()) {
+  ctx.write_set_.emplace_back(bpm_->FetchPageWrite(header_page_id_));
+  auto header = (ctx.write_set_.back()).AsMut<BPlusTreeHeaderPage>();
+  ctx.root_page_id_ = header->root_page_id_;
+  if (ctx.root_page_id_ == INVALID_PAGE_ID) {
     return;
   }
-  // keep track of parents
   std::vector<int> indices;
-  std::vector<WritePageGuard> parents;
-  // acquire latch on header
-  parents.emplace_back(bpm_->FetchPageWrite(header_page_id_));
-  auto header = (parents.back()).AsMut<BPlusTreeHeaderPage>();
-  // acquire latch on root
-  auto root_pid = header->root_page_id_;
-  parents.emplace_back(bpm_->FetchPageWrite(root_pid));
-  auto current = (parents.back()).As<const BPlusTreePage>();
-  page_id_t current_pid = root_pid;
-
+  ctx.write_set_.emplace_back(bpm_->FetchPageWrite(ctx.root_page_id_));
+  auto current = (ctx.write_set_.back()).As<const BPlusTreePage>();
   // sink to the corresponding leaf
   while (!current->IsLeafPage()) {
-    auto current_internal = reinterpret_cast<const InternalPage *>(current);
+    auto internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
-    while (comparator_(key, current_internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
+    while (comparator_(key, internal->KeyAt(index + 1)) >= 0 && index < internal->GetSize() - 1) {
       index++;
     }
     indices.emplace_back(index);
-    current_pid = current_internal->ValueAt(index);
-    parents.emplace_back(bpm_->FetchPageWrite(current_pid));
-    current = (parents.back()).As<BPlusTreePage>();
+    ctx.write_set_.emplace_back(bpm_->FetchPageWrite(internal->ValueAt(index)));
+    current = (ctx.write_set_.back()).As<BPlusTreePage>();
     // child is safe -> release parents here
     if (current->GetSize() > current->GetMinSize()) {
-      while (parents.size() > 1) {
-        parents.erase(parents.begin());
+      while (ctx.write_set_.size() > 1) {
+        ctx.write_set_.pop_front();
       }
       indices.clear();
     }
   }
 
   // remove from leaf
-  auto leaf = reinterpret_cast<LeafPage *>((parents.back()).AsMut<BPlusTreePage>());
+  auto leaf = reinterpret_cast<LeafPage *>((ctx.write_set_.back()).AsMut<BPlusTreePage>());
   RemoveFromLeaf(leaf, key);
   if (leaf->GetSize() >= leaf->GetMinSize()) {  // return directly if no underflow
     return;
@@ -306,9 +302,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
 
   // handle underflow
   InternalPage *parent;
-  if (parents.size() > 1) {
+  if (ctx.write_set_.size() > 1) {
     // gets current neighbors by consulting the immediate parent
-    parent = reinterpret_cast<InternalPage *>((*(parents.end() - 2)).AsMut<BPlusTreePage>());
+    parent = reinterpret_cast<InternalPage *>((*(ctx.write_set_.end() - 2)).AsMut<BPlusTreePage>());
     if (parent->GetPageType() == IndexPageType::INTERNAL_PAGE) {
       int index = indices.back();
       auto neighbors = parent->GetNeighbors(index);  // case when both are invalid
@@ -338,7 +334,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       indices.pop_back();
     }
   }
-  parents.pop_back();  // release leaf
+  ctx.write_set_.pop_back();  // release leaf
 
   // Update parents accordingly
   while (!indices.empty()) {
@@ -347,7 +343,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
     }
     // Gets its neighbors by consulting the immediate parent
     auto cur = parent;  // note current cannot be released here
-    parent = reinterpret_cast<InternalPage *>((*(parents.end() - 2)).AsMut<BPlusTreePage>());
+    parent = reinterpret_cast<InternalPage *>((*(ctx.write_set_.end() - 2)).AsMut<BPlusTreePage>());
     if (parent->GetPageType() != IndexPageType::INTERNAL_PAGE) {
       break;
     }
@@ -376,13 +372,13 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       cur->Merge(right);
       parent->RemoveAt(index + 1);
     }
-    parents.pop_back();  // release cur
+    ctx.write_set_.pop_back();  // release cur
     indices.pop_back();
   }
 
   // update root if needed
-  if (parents.size() > 1) {
-    auto root = (parents.back()).As<BPlusTreePage>();
+  if (ctx.write_set_.size() > 1) {
+    auto root = (ctx.write_set_.back()).As<BPlusTreePage>();
     if (root->GetSize() == 0) {
       header->root_page_id_ = INVALID_PAGE_ID;
     }
@@ -390,7 +386,6 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
       auto root_internal = reinterpret_cast<const InternalPage *>(root);
       header->root_page_id_ = root_internal->ValueAt(0);
     }
-    parents.clear();
   }
 }
 
