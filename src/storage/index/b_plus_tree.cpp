@@ -211,9 +211,20 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value) {
-  int index = 0;
-  while (index < leaf->GetSize() && comparator_(key, leaf->KeyAt(index)) > 0) {
-    index++;
+  int left = 0;
+  int right = leaf->GetSize() - 1;
+  int index = leaf->GetSize();
+
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    int cmp_result = comparator_(key, leaf->KeyAt(mid));
+
+    if (cmp_result <= 0) {
+      index = mid;
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
   }
   leaf->InsertAt(key, value, index);
 }
@@ -228,9 +239,20 @@ void BPLUSTREE_TYPE::InsertToLeaf(LeafPage *leaf, KeyType key, ValueType value) 
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertToInternal(InternalPage *parent, KeyType key, page_id_t value) {
-  int index = 1;
-  while (comparator_(key, parent->KeyAt(index)) > 0 && index < parent->GetSize()) {
-    index++;
+  int left = 1;
+  int right = parent->GetSize() - 1;
+  int index = parent->GetSize();
+
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    int cmp_result = comparator_(key, parent->KeyAt(mid));
+
+    if (cmp_result < 0) {
+      index = mid;
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
   }
   parent->InsertAt(key, value, index);
 }
@@ -440,9 +462,20 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *txn) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::RemoveFromLeaf(BPlusTreeLeafPage<KeyType, ValueType, KeyComparator> *leaf, KeyType key) {
-  int index = 0;
-  while (index < leaf->GetSize() && comparator_(key, leaf->KeyAt(index)) > 0) {
-    index++;
+  int left = 0;
+  int right = leaf->GetSize() - 1;
+  int index = leaf->GetSize();
+
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    int cmp_result = comparator_(key, leaf->KeyAt(mid));
+
+    if (cmp_result <= 0) {
+      index = mid;
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
   }
   if (index >= leaf->GetSize()) {
     return;
