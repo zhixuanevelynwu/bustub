@@ -41,27 +41,28 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return GetRootPageId() == INVALID
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *txn) -> bool {
   Context ctx;
-  (void)ctx;
-  if (IsEmpty()) {
+  ctx.read_set_.emplace_back(bpm_->FetchPageRead(header_page_id_));
+  ctx.root_page_id_ = ctx.read_set_.back().As<BPlusTreeHeaderPage>()->root_page_id_;
+  if (ctx.root_page_id_ == INVALID_PAGE_ID) {
     return false;
   }
-  auto root_pid = GetRootPageId();
-  ReadPageGuard current_guard = bpm_->FetchPageRead(root_pid);
-  auto current = current_guard.As<BPlusTreePage>();
+  ctx.read_set_.emplace_back(bpm_->FetchPageRead(ctx.root_page_id_));
+  ctx.read_set_.pop_front();
+  auto current = ctx.read_set_.back().As<BPlusTreePage>();
   while (current->GetPageType() == IndexPageType::INTERNAL_PAGE) {
-    auto node = reinterpret_cast<const InternalPage *>(current);
+    auto internal = reinterpret_cast<const InternalPage *>(current);
     int index = 0;
-    while (comparator_(key, node->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
+    while (comparator_(key, internal->KeyAt(index + 1)) >= 0 && index < current->GetSize() - 1) {
       index++;
     }
-    current_guard = bpm_->FetchPageRead(node->ValueAt(index));
-    current = current_guard.As<BPlusTreePage>();
+    ctx.read_set_.emplace_back(bpm_->FetchPageRead(internal->ValueAt(index)));
+    ctx.read_set_.pop_front();
+    current = ctx.read_set_.back().As<BPlusTreePage>();
   }
 
   auto leaf = reinterpret_cast<const LeafPage *>(current);
   for (int i = 0; i < leaf->GetSize(); i++) {
-    auto current_key = leaf->KeyAt(i);
-    if (comparator_(key, current_key) == 0) {
+    if (comparator_(key, leaf->KeyAt(i)) == 0) {
       if (result != nullptr) {
         result->emplace_back(leaf->ValueAt(i));
       }
@@ -525,13 +526,6 @@ auto BPLUSTREE_TYPE::GetRootPageId() const -> page_id_t {
   auto header_page = header_guard.As<BPlusTreeHeaderPage>();
   auto root_pid = header_page->root_page_id_;
   return root_pid;
-}
-
-INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::SetRootPageId(page_id_t page_id) {
-  WritePageGuard write_guard = bpm_->FetchPageWrite(header_page_id_);
-  auto header_page = write_guard.AsMut<BPlusTreeHeaderPage>();
-  header_page->root_page_id_ = page_id;
 }
 
 INDEX_TEMPLATE_ARGUMENTS

@@ -91,7 +91,6 @@ class BPlusTree {
 
   // Return the page id of the root node
   auto GetRootPageId() const -> page_id_t;
-  void SetRootPageId(page_id_t page_id);
 
   // Get node helper functions
   auto StartNewTree(KeyType key, ValueType value) -> page_id_t;
