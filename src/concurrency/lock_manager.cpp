@@ -32,22 +32,30 @@ namespace bustub {
  * @return true if the upgrade is successful, false otherwise
  */
 auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool {
-  std::shared_ptr<std::unordered_set<table_oid_t>> table_lock_set;
-  switch (lock_mode) {
-    // SHARED, EXCLUSIVE, INTENTION_SHARED, INTENTION_EXCLUSIVE, SHARED_INTENTION_EXCLUSIVE
-    case LockMode::SHARED:
-      // If requested lock mode is the same as that of the lock presently held, return true
-      if (txn->IsTableSharedLocked(oid)) {
-        return true;
-      }
-      // If requested lock mode is different, upgrade the lock held by the transaction
-      break;
-    case LockMode::EXCLUSIVE:
-    case LockMode::INTENTION_SHARED:
-    case LockMode::INTENTION_EXCLUSIVE:
-    case LockMode::SHARED_INTENTION_EXCLUSIVE:
-      break;
+  // find the lock request queue for the table (create one if not exist)
+  table_lock_map_latch_.lock();
+  auto lock_req_on_table = table_lock_map_.find(oid);
+  if (lock_req_on_table == table_lock_map_.end()) {
+    lock_req_on_table = table_lock_map_.emplace(oid, std::make_shared<LockRequestQueue>()).first;
   }
+
+  // lock the lock request queue for the table
+  lock_req_on_table->second->latch_.lock();
+  table_lock_map_latch_.unlock();
+
+  // check if the txn already holds a lock on the table
+  auto predicate = [&](auto &lock_req) {
+    return lock_req->txn_id_ == txn->GetTransactionId() && lock_req->oid_ == oid;
+  };
+  auto lock_req = std::find_if(lock_req_on_table->second->request_queue_.begin(),
+                               lock_req_on_table->second->request_queue_.end(), predicate);
+
+  // if the transaction already holds a lock on the table, upgrade the lock to the specified lock_mode (if possible).
+  if (lock_req != lock_req_on_table->second->request_queue_.end() &&
+      CanLockUpgrade((*lock_req)->lock_mode_, lock_mode)) {
+    (*lock_req)->lock_mode_ = lock_mode;
+  }
+
   return true;
 }
 

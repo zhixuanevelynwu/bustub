@@ -332,7 +332,9 @@ class LockManager {
       return false;
     }
 
-    auto predicate = [&](auto &lock_req) { return lock_req->txn_id_ == txn->GetTransactionId(); };
+    auto predicate = [&](auto &lock_req) {
+      return lock_req->txn_id_ == txn->GetTransactionId() && lock_req->oid_ == oid;
+    };
     auto lock_req_it =
         std::find_if(lock_req_queue->request_queue_.begin(), lock_req_queue->request_queue_.end(), predicate);
 
@@ -348,10 +350,96 @@ class LockManager {
     return false;
   }
 
-  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
-  auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool;
+  /**
+   * @brief upgrade the lock on a row
+   *
+   * @param txn
+   * @param lock_mode
+   * @param oid
+   * @param rid
+   * @return true
+   * @return false
+   */
+  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool {
+    std::scoped_lock<std::mutex> map_lock(table_lock_map_latch_);
+
+    auto lock_req_queue = table_lock_map_.find(oid)->second;
+    std::scoped_lock<std::mutex> queue_lock(lock_req_queue->latch_);
+
+    if (lock_req_queue->upgrading_ != INVALID_TXN_ID) {
+      return false;
+    }
+
+    auto predicate = [&](auto &lock_req) {
+      return lock_req->txn_id_ == txn->GetTransactionId() && lock_req->oid_ == oid && lock_req->rid_ == rid;
+    };
+    auto lock_req_it =
+        std::find_if(lock_req_queue->request_queue_.begin(), lock_req_queue->request_queue_.end(), predicate);
+
+    if (lock_req_it != lock_req_queue->request_queue_.end()) {
+      auto lock_req = *lock_req_it;
+      if (CanLockUpgrade(lock_req->lock_mode_, lock_mode)) {
+        lock_req->lock_mode_ = lock_mode;
+        lock_req_queue->upgrading_ = txn->GetTransactionId();
+        lock_req_queue->request_queue_.erase(lock_req_it);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * @brief Checks if two locks are compatible
+   * S -> [IS, S]
+   * IS -> [IS, IX, S, SIX]
+   * IX -> [IS, IX]
+   * SIX -> [IS]
+   * @param l1 the lock which T1 holds on the target resource
+   * @param l2 the lock which T2 wants on the target resource
+   * @return true
+   * @return false
+   */
+  auto AreLocksCompatible(LockMode l1, LockMode l2) -> bool {
+    switch (l1) {
+      case LockMode::SHARED:
+        return l2 == LockMode::INTENTION_SHARED || l2 == LockMode::SHARED;
+      case LockMode::INTENTION_SHARED:
+        return l2 == LockMode::INTENTION_SHARED || l2 == LockMode::INTENTION_EXCLUSIVE || l2 == LockMode::SHARED ||
+               l2 == LockMode::SHARED_INTENTION_EXCLUSIVE;
+      case LockMode::INTENTION_EXCLUSIVE:
+        return l2 == LockMode::INTENTION_SHARED || l2 == LockMode::INTENTION_EXCLUSIVE;
+      case LockMode::SHARED_INTENTION_EXCLUSIVE:
+        return l2 == LockMode::INTENTION_SHARED;
+      case LockMode::EXCLUSIVE:
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * @brief Checks if a transaction can take a lock
+   *
+   * @param txn
+   * @param lock_mode
+   * @return true
+   * @return false
+   */
   auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool;
-  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
+
+  /**
+   * @brief Grants new locks if possible
+   *
+   * @param lock_request_queue
+   */
+  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue) {
+    if (lock_request_queue->request_queue_.empty()) {
+      return;
+    }
+
+    // auto lock_req = lock_request_queue->request_queue_.front();
+    // BUSTUB_ENSURE(txn_manager_ != nullptr, "txn_manager_ is not set.")
+    // lock_request_queue->request_queue_.pop_front();
+  }
 
   /**
    * @brief checks if the lock upgrade is possible
