@@ -313,80 +313,10 @@ class LockManager {
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
 
-  /**
-   * @brief upgrade the lock on a table
-   *
-   * @param txn
-   * @param lock_mode
-   * @param oid
-   * @return true
-   * @return false
-   */
-  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool {
-    std::scoped_lock<std::mutex> map_lock(table_lock_map_latch_);
-
-    auto lock_req_queue = table_lock_map_.find(oid)->second;
-    std::scoped_lock<std::mutex> queue_lock(lock_req_queue->latch_);
-
-    if (lock_req_queue->upgrading_ != INVALID_TXN_ID) {
-      return false;
-    }
-
-    auto predicate = [&](auto &lock_req) {
-      return lock_req->txn_id_ == txn->GetTransactionId() && lock_req->oid_ == oid;
-    };
-    auto lock_req_it =
-        std::find_if(lock_req_queue->request_queue_.begin(), lock_req_queue->request_queue_.end(), predicate);
-
-    if (lock_req_it != lock_req_queue->request_queue_.end()) {
-      auto lock_req = *lock_req_it;
-      if (CanLockUpgrade(lock_req->lock_mode_, lock_mode)) {
-        lock_req->lock_mode_ = lock_mode;
-        lock_req_queue->upgrading_ = txn->GetTransactionId();
-        lock_req_queue->request_queue_.erase(lock_req_it);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * @brief upgrade the lock on a row
-   *
-   * @param txn
-   * @param lock_mode
-   * @param oid
-   * @param rid
-   * @return true
-   * @return false
-   */
-  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool {
-    std::scoped_lock<std::mutex> map_lock(table_lock_map_latch_);
-
-    auto lock_req_queue = table_lock_map_.find(oid)->second;
-    std::scoped_lock<std::mutex> queue_lock(lock_req_queue->latch_);
-
-    if (lock_req_queue->upgrading_ != INVALID_TXN_ID) {
-      return false;
-    }
-
-    auto predicate = [&](auto &lock_req) {
-      return lock_req->txn_id_ == txn->GetTransactionId() && lock_req->oid_ == oid && lock_req->rid_ == rid;
-    };
-    auto lock_req_it =
-        std::find_if(lock_req_queue->request_queue_.begin(), lock_req_queue->request_queue_.end(), predicate);
-
-    if (lock_req_it != lock_req_queue->request_queue_.end()) {
-      auto lock_req = *lock_req_it;
-      if (CanLockUpgrade(lock_req->lock_mode_, lock_mode)) {
-        lock_req->lock_mode_ = lock_mode;
-        lock_req_queue->upgrading_ = txn->GetTransactionId();
-        lock_req_queue->request_queue_.erase(lock_req_it);
-        return true;
-      }
-    }
-    return false;
-  }
+  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
+  auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
+  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
+  auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool;
 
   /**
    * @brief Checks if two locks are compatible
@@ -414,31 +344,6 @@ class LockManager {
       default:
         return false;
     }
-  }
-
-  /**
-   * @brief Checks if a transaction can take a lock
-   *
-   * @param txn
-   * @param lock_mode
-   * @return true
-   * @return false
-   */
-  auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool;
-
-  /**
-   * @brief Grants new locks if possible
-   *
-   * @param lock_request_queue
-   */
-  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue) {
-    if (lock_request_queue->request_queue_.empty()) {
-      return;
-    }
-
-    // auto lock_req = lock_request_queue->request_queue_.front();
-    // BUSTUB_ENSURE(txn_manager_ != nullptr, "txn_manager_ is not set.")
-    // lock_request_queue->request_queue_.pop_front();
   }
 
   /**
