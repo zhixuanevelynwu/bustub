@@ -341,11 +341,7 @@ class LockManager {
         if (txn->GetState() == TransactionState::GROWING) {
           return true;
         }
-
-        // no lock is allowed during shrinking state
-        txn->SetState(TransactionState::ABORTED);
-        throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
-        return false;
+        break;
 
       case IsolationLevel::READ_COMMITTED:
         // all locks are allowed during the growing state
@@ -354,10 +350,11 @@ class LockManager {
         }
 
         // IS/S lock are allowed during shrinking state
-        else if (txn->GetState() == TransactionState::SHRINKING) {
-          return lock_mode == LockMode::INTENTION_SHARED || lock_mode == LockMode::SHARED;
+        if (txn->GetState() == TransactionState::SHRINKING &&
+            (lock_mode == LockMode::INTENTION_SHARED || lock_mode == LockMode::SHARED)) {
+          return true;
         }
-        return false;
+        break;
 
       case IsolationLevel::READ_UNCOMMITTED:
         // S/IS/SIX locks are not allowed at all
@@ -372,12 +369,13 @@ class LockManager {
         if (txn->GetState() == TransactionState::GROWING) {
           return true;
         }
-
-        // no locks are allowed during shrink state
-        txn->SetState(TransactionState::ABORTED);
-        throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
-        return false;
+        break;
     }
+
+    // abort the transaction otherwise
+    txn->SetState(TransactionState::ABORTED);
+    throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
+    return false;
   }
 
   /**

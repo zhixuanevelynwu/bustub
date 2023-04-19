@@ -32,6 +32,9 @@ namespace bustub {
  * @return true if the upgrade is successful, false otherwise
  */
 auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool {
+  if (!CanTxnTakeLock(txn, lock_mode)) {
+    return false;
+  }
   // find the lock request queue for the table (create one if not exist)
   table_lock_map_latch_.lock();
   auto lock_req_on_table = table_lock_map_.find(oid);
