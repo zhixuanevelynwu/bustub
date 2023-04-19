@@ -313,10 +313,72 @@ class LockManager {
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
 
+  /**
+   * @brief upgrade the lock on a table
+   *
+   * @param txn
+   * @param lock_mode
+   * @param oid
+   * @return true
+   * @return false
+   */
   auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
   auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
   void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
-  auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool;
+
+  /**
+   * @brief Checks if a transaction can take lock based on its isolation level and state
+   *
+   * @param txn
+   * @param lock_mode
+   * @return true
+   * @return false
+   */
+  auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool {
+    switch (txn->GetIsolationLevel()) {
+      case IsolationLevel::REPEATABLE_READ:
+        // all locks are allowed during the growing state
+        if (txn->GetState() == TransactionState::GROWING) {
+          return true;
+        }
+
+        // no lock is allowed during shrinking state
+        txn->SetState(TransactionState::ABORTED);
+        throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
+        return false;
+
+      case IsolationLevel::READ_COMMITTED:
+        // all locks are allowed during the growing state
+        if (txn->GetState() == TransactionState::GROWING) {
+          return true;
+        }
+
+        // IS/S lock are allowed during shrinking state
+        else if (txn->GetState() == TransactionState::SHRINKING) {
+          return lock_mode == LockMode::INTENTION_SHARED || lock_mode == LockMode::SHARED;
+        }
+        return false;
+
+      case IsolationLevel::READ_UNCOMMITTED:
+        // S/IS/SIX locks are not allowed at all
+        if (lock_mode == LockMode::SHARED || lock_mode == LockMode::INTENTION_SHARED ||
+            lock_mode == LockMode::SHARED_INTENTION_EXCLUSIVE) {
+          txn->SetState(TransactionState::ABORTED);
+          throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_SHARED_ON_READ_UNCOMMITTED);
+          return false;
+        }
+
+        // X/IX are allowed during growing state
+        if (txn->GetState() == TransactionState::GROWING) {
+          return true;
+        }
+
+        // no locks are allowed during shrink state
+        txn->SetState(TransactionState::ABORTED);
+        throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
+        return false;
+    }
+  }
 
   /**
    * @brief Checks if two locks are compatible

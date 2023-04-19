@@ -43,19 +43,45 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   lock_req_on_table->second->latch_.lock();
   table_lock_map_latch_.unlock();
 
-  // check if the txn already holds a lock on the table
-  auto predicate = [&](auto &lock_req) {
-    return lock_req->txn_id_ == txn->GetTransactionId() && lock_req->oid_ == oid;
-  };
-  auto lock_req = std::find_if(lock_req_on_table->second->request_queue_.begin(),
-                               lock_req_on_table->second->request_queue_.end(), predicate);
+  // iterate over each lock request on table
+  auto req_queue = lock_req_on_table->second;
+  for (auto req : req_queue->request_queue_) {
+    // if the transaction already holds a lock on the table, upgrade the lock to the specified lock_mode (if possible).
+    if (req->txn_id_ == txn->GetTransactionId()) {
+      // requested lock mode is the same as that of the lock presently held
+      if (req->lock_mode_ == lock_mode) {
+        return true;
+      }
 
-  // if the transaction already holds a lock on the table, upgrade the lock to the specified lock_mode (if possible).
-  if (lock_req != lock_req_on_table->second->request_queue_.end() &&
-      CanLockUpgrade((*lock_req)->lock_mode_, lock_mode)) {
-    (*lock_req)->lock_mode_ = lock_mode;
+      // only one transaction should be allowed to upgrade its lock on a given resource
+      if (req_queue->upgrading_ != INVALID_TXN_ID || !CanLockUpgrade(req->lock_mode_, lock_mode)) {
+        txn->SetState(TransactionState::ABORTED);
+        throw TransactionAbortException(txn->GetTransactionId(), AbortReason::UPGRADE_CONFLICT);
+        return false;
+      }
+
+      // finally, upgrade it
+      req_queue->upgrading_ = txn->GetTransactionId();
+      req->lock_mode_ = lock_mode;
+      req->granted_ = false;
+    }
+
+    // if another transaction holds a lock on the table, check its compatibility
+    if (!AreLocksCompatible(req->lock_mode_, lock_mode)) {
+      return false;
+    }
   }
 
+  /*
+  else {  // otherwise, create a new request
+      req = std::shared_ptr<LockRequest>();
+      req->txn_id_ = txn->GetTransactionId();
+      req->lock_mode_ = lock_mode;
+      req->oid_ = oid;
+      req->granted_ = false;
+      req_queue->request_queue_.emplace_back(req);
+    }
+  */
   return true;
 }
 
