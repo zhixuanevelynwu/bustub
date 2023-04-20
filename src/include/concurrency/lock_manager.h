@@ -26,6 +26,7 @@
 #include "common/macros.h"
 #include "common/rid.h"
 #include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -322,7 +323,27 @@ class LockManager {
    * @return true
    * @return false
    */
-  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
+  auto UpgradeLockTable(Transaction *txn, LockMode old_lock_mode, LockMode lock_mode, const table_oid_t &oid) -> bool {
+    // erase the original lock from the transaction
+
+    std::shared_ptr<std::unordered_set<table_oid_t>> lock_set;
+    switch (lock_mode) {
+      case LockMode::SHARED:
+        lock_set = txn->GetSharedTableLockSet();
+        break;
+      case LockMode::EXCLUSIVE:
+        lock_set = txn->GetExclusiveTableLockSet();
+        break;
+      case LockMode::INTENTION_SHARED:
+        lock_set = txn->GetIntentionSharedTableLockSet();
+        break;
+      case LockMode::INTENTION_EXCLUSIVE:
+      case LockMode::SHARED_INTENTION_EXCLUSIVE:
+        break;
+    }
+    return true;
+  }
+
   auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
   void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
 
@@ -360,7 +381,7 @@ class LockManager {
         // S/IS/SIX locks are not allowed at all
         if (lock_mode == LockMode::SHARED || lock_mode == LockMode::INTENTION_SHARED ||
             lock_mode == LockMode::SHARED_INTENTION_EXCLUSIVE) {
-          txn->SetState(TransactionState::ABORTED);
+          txn_manager_->Abort(txn);
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_SHARED_ON_READ_UNCOMMITTED);
           return false;
         }
@@ -373,7 +394,7 @@ class LockManager {
     }
 
     // abort the transaction otherwise
-    txn->SetState(TransactionState::ABORTED);
+    txn_manager_->Abort(txn);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
     return false;
   }
