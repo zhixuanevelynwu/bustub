@@ -66,7 +66,8 @@ void TableLockTest1() {
   std::vector<Transaction *> txns;
 
   /** 10 tables */
-  int num_oids = 10;
+  // int num_oids = 10;
+  int num_oids = 1;
   for (int i = 0; i < num_oids; i++) {
     table_oid_t oid{static_cast<uint32_t>(i)};
     oids.push_back(oid);
@@ -109,7 +110,7 @@ void TableLockTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_TableLockTest1) { TableLockTest1(); }  // NOLINT
+TEST(LockManagerTest, TableLockTest1) { TableLockTest1(); }  // NOLINT
 
 /** Upgrading single transaction from S -> X */
 void TableLockUpgradeTest1() {

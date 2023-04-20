@@ -26,7 +26,6 @@
 #include "common/macros.h"
 #include "common/rid.h"
 #include "concurrency/transaction.h"
-#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -66,7 +65,7 @@ class LockManager {
   class LockRequestQueue {
    public:
     /** List of lock requests for the same resource (table or row) */
-    std::list<LockRequest *> request_queue_;
+    std::list<std::shared_ptr<LockRequest>> request_queue_;
     /** For notifying blocked transactions on this rid */
     std::condition_variable cv_;
     /** txn_id of an upgrading transaction (if any) */
@@ -315,37 +314,57 @@ class LockManager {
   /* You are allowed to modify all functions below. */
 
   /**
-   * @brief upgrade the lock on a table
+   * @brief Get the corresponsing table lock set from the transaction given a lock mode
    *
    * @param txn
    * @param lock_mode
-   * @param oid
-   * @return true
-   * @return false
+   * @return std::shared_ptr<std::unordered_set<table_oid_t>>
    */
-  auto UpgradeLockTable(Transaction *txn, LockMode old_lock_mode, LockMode lock_mode, const table_oid_t &oid) -> bool {
-    // erase the original lock from the transaction
-
-    std::shared_ptr<std::unordered_set<table_oid_t>> lock_set;
+  auto GetTableLockSet(Transaction *txn, LockMode lock_mode) -> std::shared_ptr<std::unordered_set<table_oid_t>> {
     switch (lock_mode) {
       case LockMode::SHARED:
-        lock_set = txn->GetSharedTableLockSet();
-        break;
+        return txn->GetSharedTableLockSet();
       case LockMode::EXCLUSIVE:
-        lock_set = txn->GetExclusiveTableLockSet();
-        break;
+        return txn->GetExclusiveTableLockSet();
       case LockMode::INTENTION_SHARED:
-        lock_set = txn->GetIntentionSharedTableLockSet();
-        break;
+        return txn->GetIntentionSharedTableLockSet();
       case LockMode::INTENTION_EXCLUSIVE:
+        return txn->GetIntentionExclusiveTableLockSet();
       case LockMode::SHARED_INTENTION_EXCLUSIVE:
-        break;
+        return txn->GetSharedIntentionExclusiveTableLockSet();
     }
-    return true;
   }
 
+  /** Book Keeping Helpers */
+  auto AddToTableLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid) {
+    GetTableLockSet(txn, lock_mode)->emplace(oid);
+  }
+
+  auto RemoveFromTableLockSet(Transaction *txn, table_oid_t oid) {
+    txn->GetSharedTableLockSet()->erase(oid);
+    txn->GetExclusiveTableLockSet()->erase(oid);
+    txn->GetIntentionSharedTableLockSet()->erase(oid);
+    txn->GetIntentionExclusiveTableLockSet()->erase(oid);
+    txn->GetSharedIntentionExclusiveTableLockSet()->erase(oid);
+  }
+
+  auto UpgradeTableLockSet(Transaction *txn, LockMode old_lock_mode, LockMode lock_mode, const table_oid_t &oid)
+      -> void {
+    // erase table from txn's original lock set
+    auto old_lock_set = GetTableLockSet(txn, old_lock_mode);
+    old_lock_set->erase(oid);
+
+    // add table to txn's new lock set
+    auto lock_set = GetTableLockSet(txn, lock_mode);
+    lock_set->emplace(oid);
+  }
+  /** End Book Keeping Helpers */
+
+  auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
+
   auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
-  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue);
+
+  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue) {}
 
   /**
    * @brief Checks if a transaction can take lock based on its isolation level and state
@@ -381,7 +400,6 @@ class LockManager {
         // S/IS/SIX locks are not allowed at all
         if (lock_mode == LockMode::SHARED || lock_mode == LockMode::INTENTION_SHARED ||
             lock_mode == LockMode::SHARED_INTENTION_EXCLUSIVE) {
-          txn_manager_->Abort(txn);
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_SHARED_ON_READ_UNCOMMITTED);
           return false;
         }
@@ -394,7 +412,6 @@ class LockManager {
     }
 
     // abort the transaction otherwise
-    txn_manager_->Abort(txn);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
     return false;
   }
@@ -460,9 +477,28 @@ class LockManager {
   }
 
   auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
+
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
                  std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
   void UnlockAll();
+
+  /** Graph API Helper */
+
+  /**
+   * @brief When a transaction t2 is unlocked, we want to remove it from the waits for graph
+   *
+   * @param t2
+   */
+  void RemoveAllEdgesContaining(txn_id_t t2) {
+    std::scoped_lock lock(waits_for_latch_);
+    for (auto &pair : waits_for_) {
+      auto txns = pair.second;
+      auto t2_it = std::find(txns.begin(), txns.end(), t2);
+      if (t2_it != txns.end()) {
+        txns.erase(t2_it);
+      }
+    }
+  }
 
   /** Structure that holds lock requests for a given table oid */
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;
