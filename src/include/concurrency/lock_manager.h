@@ -66,6 +66,7 @@ class LockManager {
    public:
     /** List of lock requests for the same resource (table or row) */
     std::list<std::shared_ptr<LockRequest>> request_queue_;
+    // std::list<LockRequest *> request_queue_;
     /** For notifying blocked transactions on this rid */
     std::condition_variable cv_;
     /** txn_id of an upgrading transaction (if any) */
@@ -337,19 +338,24 @@ class LockManager {
 
   /** Book Keeping Helpers */
   auto AddToTableLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid) {
+    txn->LockTxn();
     GetTableLockSet(txn, lock_mode)->emplace(oid);
+    txn->UnlockTxn();
   }
 
   auto RemoveFromTableLockSet(Transaction *txn, table_oid_t oid) {
+    txn->LockTxn();
     txn->GetSharedTableLockSet()->erase(oid);
     txn->GetExclusiveTableLockSet()->erase(oid);
     txn->GetIntentionSharedTableLockSet()->erase(oid);
     txn->GetIntentionExclusiveTableLockSet()->erase(oid);
     txn->GetSharedIntentionExclusiveTableLockSet()->erase(oid);
+    txn->UnlockTxn();
   }
 
   auto UpgradeTableLockSet(Transaction *txn, LockMode old_lock_mode, LockMode lock_mode, const table_oid_t &oid)
       -> void {
+    txn->LockTxn();
     // erase table from txn's original lock set
     auto old_lock_set = GetTableLockSet(txn, old_lock_mode);
     old_lock_set->erase(oid);
@@ -357,6 +363,7 @@ class LockManager {
     // add table to txn's new lock set
     auto lock_set = GetTableLockSet(txn, lock_mode);
     lock_set->emplace(oid);
+    txn->UnlockTxn();
   }
   /** End Book Keeping Helpers */
 

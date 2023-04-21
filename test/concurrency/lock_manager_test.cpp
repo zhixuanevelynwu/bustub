@@ -58,6 +58,66 @@ void CheckTableLockSizes(Transaction *txn, size_t s_size, size_t x_size, size_t 
   EXPECT_EQ(six_size, txn->GetSharedIntentionExclusiveTableLockSet()->size());
 }
 
+void TableLockTest0() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+
+  std::vector<table_oid_t> oids;
+  std::vector<Transaction *> txns;
+
+  /** 10 tables */
+  // what's causing heap-use-after-free
+  //  multiple tables?
+  //  multiple txns?
+  int num_oids = 2;
+  for (int i = 0; i < num_oids; i++) {
+    table_oid_t oid{static_cast<uint32_t>(i)};
+    oids.push_back(oid);
+  }
+
+  int num_txns = 2;
+  for (int i = 0; i < num_txns; i++) {
+    txns.push_back(txn_mgr.Begin());
+    EXPECT_EQ(i, txns[i]->GetTransactionId());
+  }
+
+  /** Each transaction takes an S lock on every table and then unlocks */
+  auto task = [&](int txn_id) {
+    bool res;
+    for (const table_oid_t &oid : oids) {
+      res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::EXCLUSIVE, oid);
+      EXPECT_TRUE(res);
+      CheckGrowing(txns[txn_id]);
+    }
+    for (const table_oid_t &oid : oids) {
+      res = lock_mgr.UnlockTable(txns[txn_id], oid);
+      EXPECT_TRUE(res);
+      CheckShrinking(txns[txn_id]);
+    }
+    txn_mgr.Commit(txns[txn_id]);
+    CheckCommitted(txns[txn_id]);
+
+    /** All locks should be dropped */
+    CheckTableLockSizes(txns[txn_id], 0, 0, 0, 0, 0);
+  };
+
+  std::vector<std::thread> threads;
+  threads.reserve(num_txns);
+
+  for (int i = 0; i < num_txns; i++) {
+    threads.emplace_back(std::thread{task, i});
+  }
+
+  for (int i = 0; i < num_txns; i++) {
+    threads[i].join();
+  }
+
+  for (int i = 0; i < num_txns; i++) {
+    delete txns[i];
+  }
+}
+TEST(LockManagerTest, TableLockTest0) { TableLockTest0(); }  // NOLINT
+
 void TableLockTest1() {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};
@@ -66,8 +126,7 @@ void TableLockTest1() {
   std::vector<Transaction *> txns;
 
   /** 10 tables */
-  // int num_oids = 10;
-  int num_oids = 1;
+  int num_oids = 10;
   for (int i = 0; i < num_oids; i++) {
     table_oid_t oid{static_cast<uint32_t>(i)};
     oids.push_back(oid);

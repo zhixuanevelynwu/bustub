@@ -52,8 +52,8 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
       // only one transaction should be allowed to upgrade its lock on a given resource
       if ((req->granted_ && !CanLockUpgrade(req->lock_mode_, lock_mode)) || req_queue->upgrading_ != INVALID_TXN_ID) {
         txn_manager_->Abort(txn);
-        lock.unlock();
         throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
+        lock.unlock();
         return false;
       }
 
@@ -67,20 +67,29 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
       lock.unlock();
       return true;
     }
+  }
 
-    // if another transaction holds a lock on the table, check its compatibility
-    if (!AreLocksCompatible(req->lock_mode_, lock_mode)) {
-      // wait until the transaction holding the lock releases it
-      AddEdge(txn_id, req->txn_id_);
-      req_queue->cv_.wait(lock);
+  // wait until all incompatible locks on the table are released
+  bool has_incompatible_lock = true;
+  while (has_incompatible_lock) {
+    has_incompatible_lock = false;
+    for (auto &req : req_queue->request_queue_) {
+      if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
+        // wait until the transaction holding the lock releases it
+        AddEdge(txn_id, req->txn_id_);
+        req_queue->cv_.wait(lock);
+        has_incompatible_lock = true;
+        break;
+      }
     }
   }
 
   // transaction is not in the queue, and there is no incompatible lock
-  std::cout << "Create new Lock Request" << std::endl;
   auto new_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid);
+  // LockRequest new_req(txn_id, lock_mode, oid);
   new_req->granted_ = true;  // grant lock
   req_queue->request_queue_.push_back(new_req);
+  // req_queue->request_queue_.push_back(&new_req);
   AddToTableLockSet(txn, lock_mode, oid);
 
   lock.unlock();
@@ -148,6 +157,7 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   // unlock the transaction here
   RemoveAllEdgesContaining(txn_id);
   RemoveFromTableLockSet(txn, oid);
+  (*req_it)->granted_ = false;
   req_queue->cv_.notify_all();  // notify waiting transactions
   req_queue->request_queue_.erase(req_it);
 
