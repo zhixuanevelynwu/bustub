@@ -314,13 +314,6 @@ class LockManager {
   /** Spring 2023 */
   /* You are allowed to modify all functions below. */
 
-  /**
-   * @brief Get the corresponsing table lock set from the transaction given a lock mode
-   *
-   * @param txn
-   * @param lock_mode
-   * @return std::shared_ptr<std::unordered_set<table_oid_t>>
-   */
   auto GetTableLockSet(Transaction *txn, LockMode lock_mode) -> std::shared_ptr<std::unordered_set<table_oid_t>> {
     switch (lock_mode) {
       case LockMode::SHARED:
@@ -336,10 +329,39 @@ class LockManager {
     }
   }
 
+  auto GetRowLockSet(Transaction *txn, LockMode lock_mode)
+      -> std::shared_ptr<std::unordered_map<table_oid_t, std::unordered_set<RID>>> {
+    BUSTUB_ASSERT(lock_mode == LockMode::SHARED || lock_mode == LockMode::EXCLUSIVE, "Invalid intention lock on row");
+    if (lock_mode == LockMode::SHARED) {
+      return txn->GetSharedRowLockSet();
+    }
+    return txn->GetExclusiveRowLockSet();
+  }
+
+  auto HoldsRowOnTable(Transaction *txn, table_oid_t oid) -> bool {
+    txn->LockTxn();
+    auto row_slock_set = txn->GetSharedRowLockSet();
+    auto row_xlock_set = txn->GetExclusiveRowLockSet();
+    txn->UnlockTxn();
+    return row_slock_set->find(oid) != row_slock_set->end() || row_xlock_set->find(oid) != row_xlock_set->end();
+  }
+
   /** Book Keeping Helpers */
   auto AddToTableLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid) {
     txn->LockTxn();
     GetTableLockSet(txn, lock_mode)->emplace(oid);
+    txn->UnlockTxn();
+  }
+
+  auto AddToRowLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid, RID rid) -> void {
+    txn->LockTxn();
+    auto row_lock_set = GetRowLockSet(txn, lock_mode);
+    auto pair = row_lock_set->find(oid);
+    if (pair != row_lock_set->end()) {
+      pair->second.emplace(rid);
+    } else {
+      row_lock_set->insert({oid, std::unordered_set<RID>{rid}});
+    }
     txn->UnlockTxn();
   }
 
@@ -350,6 +372,27 @@ class LockManager {
     txn->GetIntentionSharedTableLockSet()->erase(oid);
     txn->GetIntentionExclusiveTableLockSet()->erase(oid);
     txn->GetSharedIntentionExclusiveTableLockSet()->erase(oid);
+    txn->UnlockTxn();
+  }
+
+  auto RemoveFromRowLockSet(Transaction *txn, table_oid_t oid, RID rid) {
+    txn->LockTxn();
+    auto row_slock_set = txn->GetSharedRowLockSet();
+    auto slocked_rows = row_slock_set->find(oid);
+    if (slocked_rows != row_slock_set->end()) {
+      slocked_rows->second.erase(rid);
+      if (slocked_rows->second.empty()) {
+        row_slock_set->erase(oid);
+      }
+    }
+    auto row_xlock_set = txn->GetExclusiveRowLockSet();
+    auto xlocked_rows = row_xlock_set->find(oid);
+    if (xlocked_rows != row_xlock_set->end()) {
+      xlocked_rows->second.erase(rid);
+      if (xlocked_rows->second.empty()) {
+        row_xlock_set->erase(oid);
+      }
+    }
     txn->UnlockTxn();
   }
 
@@ -382,10 +425,12 @@ class LockManager {
    * @return false
    */
   auto CanTxnTakeLock(Transaction *txn, LockMode lock_mode) -> bool {
+    txn->LockTxn();
     switch (txn->GetIsolationLevel()) {
       case IsolationLevel::REPEATABLE_READ:
         // all locks are allowed during the growing state
         if (txn->GetState() == TransactionState::GROWING) {
+          txn->UnlockTxn();
           return true;
         }
         break;
@@ -393,12 +438,14 @@ class LockManager {
       case IsolationLevel::READ_COMMITTED:
         // all locks are allowed during the growing state
         if (txn->GetState() == TransactionState::GROWING) {
+          txn->UnlockTxn();
           return true;
         }
 
         // IS/S lock are allowed during shrinking state
         if (txn->GetState() == TransactionState::SHRINKING &&
             (lock_mode == LockMode::INTENTION_SHARED || lock_mode == LockMode::SHARED)) {
+          txn->UnlockTxn();
           return true;
         }
         break;
@@ -407,18 +454,21 @@ class LockManager {
         // S/IS/SIX locks are not allowed at all
         if (lock_mode == LockMode::SHARED || lock_mode == LockMode::INTENTION_SHARED ||
             lock_mode == LockMode::SHARED_INTENTION_EXCLUSIVE) {
+          txn->UnlockTxn();
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_SHARED_ON_READ_UNCOMMITTED);
           return false;
         }
 
         // X/IX are allowed during growing state
         if (txn->GetState() == TransactionState::GROWING) {
+          txn->UnlockTxn();
           return true;
         }
         break;
     }
 
     // abort the transaction otherwise
+    txn->UnlockTxn();
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
     return false;
   }
@@ -483,7 +533,34 @@ class LockManager {
     }
   }
 
-  auto CheckAppropriateLockOnTable(Transaction *txn, const table_oid_t &oid, LockMode row_lock_mode) -> bool;
+  /**
+   * @brief called when locking a row. checks if txn already holds appropriate lock on the table the row belongs to
+   *
+   * @param txn
+   * @param oid
+   * @param row_lock_mode
+   * @return true
+   * @return false
+   */
+  auto CheckAppropriateLockOnTable(txn_id_t txn_id, LockMode table_lock_mode, LockMode row_lock_mode) -> bool {
+    switch (row_lock_mode) {
+      // S/IS/X/IX/SIX
+      case LockMode::SHARED:
+        return true;
+
+      // must hold X/IX/SIX on table
+      case LockMode::EXCLUSIVE:
+        return table_lock_mode == LockMode::EXCLUSIVE || table_lock_mode == LockMode::INTENTION_EXCLUSIVE ||
+               table_lock_mode == LockMode::SHARED_INTENTION_EXCLUSIVE;
+
+      // row locking should not support intention locks
+      case LockMode::INTENTION_SHARED:
+      case LockMode::INTENTION_EXCLUSIVE:
+      case LockMode::SHARED_INTENTION_EXCLUSIVE:
+        throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_INTENTION_LOCK_ON_ROW);
+        return false;
+    }
+  }
 
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
                  std::unordered_set<txn_id_t> &visited, txn_id_t *abort_txn_id) -> bool;
