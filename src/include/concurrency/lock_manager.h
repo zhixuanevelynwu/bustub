@@ -339,10 +339,8 @@ class LockManager {
   }
 
   auto HoldsRowOnTable(Transaction *txn, table_oid_t oid) -> bool {
-    txn->LockTxn();
     auto row_slock_set = txn->GetSharedRowLockSet();
     auto row_xlock_set = txn->GetExclusiveRowLockSet();
-    txn->UnlockTxn();
     return row_slock_set->find(oid) != row_slock_set->end() || row_xlock_set->find(oid) != row_xlock_set->end();
   }
 
@@ -454,6 +452,7 @@ class LockManager {
         // S/IS/SIX locks are not allowed at all
         if (lock_mode == LockMode::SHARED || lock_mode == LockMode::INTENTION_SHARED ||
             lock_mode == LockMode::SHARED_INTENTION_EXCLUSIVE) {
+          txn->SetState(TransactionState::ABORTED);
           txn->UnlockTxn();
           throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_SHARED_ON_READ_UNCOMMITTED);
           return false;
@@ -468,6 +467,7 @@ class LockManager {
     }
 
     // abort the transaction otherwise
+    txn->SetState(TransactionState::ABORTED);
     txn->UnlockTxn();
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
     return false;
@@ -542,7 +542,7 @@ class LockManager {
    * @return true
    * @return false
    */
-  auto CheckAppropriateLockOnTable(txn_id_t txn_id, LockMode table_lock_mode, LockMode row_lock_mode) -> bool {
+  auto CheckAppropriateLockOnTable(LockMode table_lock_mode, LockMode row_lock_mode) -> bool {
     switch (row_lock_mode) {
       // S/IS/X/IX/SIX
       case LockMode::SHARED:
@@ -557,7 +557,6 @@ class LockManager {
       case LockMode::INTENTION_SHARED:
       case LockMode::INTENTION_EXCLUSIVE:
       case LockMode::SHARED_INTENTION_EXCLUSIVE:
-        throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_INTENTION_LOCK_ON_ROW);
         return false;
     }
   }

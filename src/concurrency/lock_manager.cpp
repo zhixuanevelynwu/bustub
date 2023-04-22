@@ -51,9 +51,9 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 
       // only one transaction should be allowed to upgrade its lock on a given resource
       if ((req->granted_ && !CanLockUpgrade(req->lock_mode_, lock_mode)) || req_queue->upgrading_ != INVALID_TXN_ID) {
-        txn_manager_->Abort(txn);
-        throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
         lock.unlock();
+        txn->SetState(TransactionState::ABORTED);
+        throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
         return false;
       }
 
@@ -105,6 +105,7 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   // currently no lock on the table
   if (lock_req_on_table == table_lock_map_.end()) {
     table_lock_map_latch_.unlock();
+    txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
     return false;
   }
@@ -121,20 +122,15 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   // transaction does not hold a lock on the table
   if (req_it == req_queue->request_queue_.end()) {
     lock.unlock();
+    txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
     return false;
   }
 
   // ensure transaction does not hold lock on any rows on the table
   if (HoldsRowOnTable(txn, oid)) {
-    throw TransactionAbortException(txn_id, AbortReason::TABLE_UNLOCKED_BEFORE_UNLOCKING_ROWS);
-    return false;
-  }
-
-  auto row_slock_set = txn->GetSharedRowLockSet();
-  auto row_xlock_set = txn->GetExclusiveRowLockSet();
-  if (row_slock_set->find(oid) != row_slock_set->end() || row_xlock_set->find(oid) != row_xlock_set->end()) {
     lock.unlock();
+    txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::TABLE_UNLOCKED_BEFORE_UNLOCKING_ROWS);
     return false;
   }
@@ -194,12 +190,16 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
                              [txn_id](auto &req) { return req->txn_id_ == txn_id && req->granted_; });
   if (req_it == req_queue->request_queue_.end()) {
     lock.unlock();
+    txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::TABLE_LOCK_NOT_PRESENT);
     return false;
   }
 
   // ensure txn holds appropriate lock on the table
-  if (!CheckAppropriateLockOnTable(txn_id, (*req_it)->lock_mode_, lock_mode)) {
+  if (!CheckAppropriateLockOnTable((*req_it)->lock_mode_, lock_mode)) {
+    lock.unlock();
+    txn->SetState(TransactionState::ABORTED);
+    throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_INTENTION_LOCK_ON_ROW);
     return false;
   }
 
@@ -216,7 +216,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
 
       // only one transaction should be allowed to upgrade its lock on a given resource
       if ((req->granted_ && !CanLockUpgrade(req->lock_mode_, lock_mode)) || req_queue->upgrading_ != INVALID_TXN_ID) {
-        txn_manager_->Abort(txn);
+        txn->SetState(TransactionState::ABORTED);
         throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
         lock.unlock();
         return false;
@@ -268,6 +268,7 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   // currently no lock on the table
   if (lock_req_on_table == table_lock_map_.end()) {
     table_lock_map_latch_.unlock();
+    txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
     return false;
   }
@@ -283,6 +284,7 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
                    [txn_id, rid](auto &req) { return req->txn_id_ == txn_id && req->granted_ && req->rid_ == rid; });
   if (req_it == req_queue->request_queue_.end()) {
     lock.unlock();
+    txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
     return false;
   }
