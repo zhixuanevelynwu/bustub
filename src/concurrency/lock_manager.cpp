@@ -429,7 +429,7 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
   }
 
   // helper to check if a node is visited
-  auto is_visited = [unvisited](txn_id_t txn_id) -> bool { return unvisited.count(txn_id) > 0; };
+  auto is_visited = [unvisited](txn_id_t txn_id) -> bool { return unvisited.count(txn_id) == 0; };
   while (!unvisited.empty()) {
     // pick any unvisited vertices to start
     std::stack<txn_id_t> stack;
@@ -445,8 +445,7 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
         // visit each neighbor
         auto neighbors = waits_for_.find(current)->second;
         for (auto neighbor : neighbors) {
-          // add unvisited neighbors to the stack
-          if (!is_visited(neighbor)) {
+          if (!is_visited(neighbor)) {  // add unvisited neighbors to the stack
             stack.push(neighbor);
           } else {  // a cycle exsits if a neighbor is visited and is not a parent of the current vertex
             auto children = waits_for_.find(neighbor)->second;
