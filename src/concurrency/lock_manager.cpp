@@ -19,6 +19,15 @@
 
 namespace bustub {
 
+/**
+ * @brief lock table
+ *
+ * @param txn
+ * @param lock_mode
+ * @param oid
+ * @return true
+ * @return false
+ */
 auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool {
   // make sure txn is in a valid state & isolation level to take lock
   if (!CanTxnTakeLock(txn, lock_mode)) {
@@ -96,6 +105,14 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   return true;
 }
 
+/**
+ * @brief unlock table
+ *
+ * @param txn
+ * @param oid
+ * @return true
+ * @return false
+ */
 auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool {
   // find the lock request queue for the table
   table_lock_map_latch_.lock();
@@ -155,7 +172,7 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
     }
   }
 
-  // unlock the transaction here
+  // unlock the row here
   RemoveAllEdgesContaining(txn_id);
   RemoveFromTableLockSet(txn, oid);
   // (*req_it)->granted_ = false; // not sure about this
@@ -166,6 +183,16 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   return true;
 }
 
+/**
+ * @brief lock row
+ *
+ * @param txn
+ * @param lock_mode
+ * @param oid
+ * @param rid
+ * @return true
+ * @return false
+ */
 auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool {
   // make sure txn is in a valid state & isolation level to take lock
   if (!CanTxnTakeLock(txn, lock_mode)) {
@@ -259,6 +286,16 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   return true;
 }
 
+/**
+ * @brief unlock row
+ *
+ * @param txn
+ * @param oid
+ * @param rid
+ * @param force
+ * @return true
+ * @return false
+ */
 auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID &rid, bool force) -> bool {
   // find the lock request queue for the table
   table_lock_map_latch_.lock();
@@ -308,7 +345,7 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
     }
   }
 
-  // unlock the transaction here
+  // unlock the row here
   RemoveAllEdgesContaining(txn_id);
   RemoveFromRowLockSet(txn, oid, rid);
   req_queue->cv_.notify_all();  // notify waiting transactions
@@ -320,31 +357,110 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
 
 void LockManager::UnlockAll() {
   // You probably want to unlock all table and txn locks here.
+  for (auto &pair : table_lock_map_) {
+    auto req_queue = pair.second;
+    req_queue->latch_.lock();
+    req_queue->request_queue_.clear();
+    req_queue->latch_.unlock();
+  }
 }
 
+/** Graph API */
 void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
   std::scoped_lock lock(waits_for_latch_);
   auto waits_for_txn = waits_for_.find(t1);
   if (waits_for_txn == waits_for_.end()) {
+    // create a new vertex
     waits_for_.emplace(t1, std::vector<txn_id_t>(t2));
   } else {
-    waits_for_txn->second.emplace_back(t2);
+    // add edge if it is not in graph
+    auto edges = waits_for_txn->second;
+    if (std::find(edges.begin(), edges.end(), t2) == edges.end()) {
+      edges.emplace_back(t2);
+    }
   }
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
   std::scoped_lock lock(waits_for_latch_);
   auto waits_for_txn = waits_for_.find(t1);
+  // remove edge if it is in graph
   if (waits_for_txn != waits_for_.end()) {
-    auto txns = waits_for_txn->second;
-    auto to_remove = std::find(txns.begin(), txns.end(), t2);
-    if (to_remove != txns.end()) {
-      txns.erase(to_remove);
+    auto edges = waits_for_txn->second;
+    auto to_remove = std::find(edges.begin(), edges.end(), t2);
+    if (to_remove != edges.end()) {
+      edges.erase(to_remove);
     }
   }
 }
 
-auto LockManager::HasCycle(txn_id_t *txn_id) -> bool { return false; }
+void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
+  std::scoped_lock lock(waits_for_latch_);
+  for (auto &pair : waits_for_) {
+    auto txns = pair.second;
+    auto t2_it = std::find(txns.begin(), txns.end(), t2);
+    if (t2_it != txns.end()) {
+      txns.erase(t2_it);
+    }
+  }
+}
+
+/**
+ * @brief Looks for a cycle by using depth-first search (DFS). If it finds a cycle, HasCycle should store the
+ * transaction id of the youngest transaction in the cycle in txn_id and return true. Your function should return the
+ * first cycle it finds. If your graph has no cycles, HasCycle should return false.
+ *
+ * @param txn_id
+ * @return true
+ * @return false
+ */
+auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
+  std::scoped_lock lock(waits_for_latch_);  // necessary?
+
+  // do nothing if the graph is empty
+  if (waits_for_.empty()) {
+    return false;
+  }
+
+  // store all unvisited vertices
+  std::unordered_set<txn_id_t> unvisited;
+  for (auto &pair : waits_for_) {
+    unvisited.insert(pair.first);
+  }
+
+  // helper to check if a node is visited
+  auto is_visited = [unvisited](txn_id_t txn_id) -> bool { return unvisited.count(txn_id) > 0; };
+  while (!unvisited.empty()) {
+    // pick any unvisited vertices to start
+    std::stack<txn_id_t> stack;
+    stack.push(*unvisited.begin());
+    while (!stack.empty()) {
+      auto current = stack.top();
+      stack.pop();
+
+      // if not visited, mark as visited
+      if (!is_visited(current)) {
+        unvisited.erase(current);
+
+        // visit each neighbor
+        auto neighbors = waits_for_.find(current)->second;
+        for (auto neighbor : neighbors) {
+          // add unvisited neighbors to the stack
+          if (!is_visited(neighbor)) {
+            stack.push(neighbor);
+          } else {  // a cycle exsits if a neighbor is visited and is not a parent of the current vertex
+            auto children = waits_for_.find(neighbor)->second;
+            if (std::find(children.begin(), children.end(), current) == children.end()) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return false;
+}
 
 auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
   std::vector<std::pair<txn_id_t, txn_id_t>> edges(0);

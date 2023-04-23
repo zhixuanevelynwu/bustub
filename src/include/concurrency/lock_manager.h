@@ -292,6 +292,12 @@ class LockManager {
   auto RemoveEdge(txn_id_t t1, txn_id_t t2) -> void;
 
   /**
+   * When a transaction t2 is unlocked, we want to remove it from the waits for graph
+   * @param t2
+   */
+  auto RemoveAllEdgesContaining(txn_id_t t2) -> void;
+
+  /**
    * Checks if the graph has a cycle, returning the newest transaction ID in the cycle if so.
    * @param[out] txn_id if the graph has a cycle, will contain the newest transaction ID
    * @return false if the graph has no cycle, otherwise stores the newest transaction ID in the cycle to txn_id
@@ -566,22 +572,6 @@ class LockManager {
   void UnlockAll();
 
   /** Graph API Helper */
-
-  /**
-   * @brief When a transaction t2 is unlocked, we want to remove it from the waits for graph
-   *
-   * @param t2
-   */
-  void RemoveAllEdgesContaining(txn_id_t t2) {
-    std::scoped_lock lock(waits_for_latch_);
-    for (auto &pair : waits_for_) {
-      auto txns = pair.second;
-      auto t2_it = std::find(txns.begin(), txns.end(), t2);
-      if (t2_it != txns.end()) {
-        txns.erase(t2_it);
-      }
-    }
-  }
 
   /** Structure that holds lock requests for a given table oid */
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;
