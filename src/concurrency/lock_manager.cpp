@@ -80,6 +80,11 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     }
   }
 
+  // transaction is not in the queue
+  auto new_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid);
+  // LockRequest new_req(txn_id, lock_mode, oid);
+  req_queue->request_queue_.push_back(new_req);
+
   // wait until all incompatible locks on the table are released
   bool has_incompatible_lock = true;
   while (has_incompatible_lock) {
@@ -99,14 +104,8 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     }
   }
 
-  // transaction is not in the queue, and there is no incompatible lock
-  auto new_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid);
-  // LockRequest new_req(txn_id, lock_mode, oid);
   new_req->granted_ = true;  // grant lock
-  req_queue->request_queue_.push_back(new_req);
-  // req_queue->request_queue_.push_back(&new_req);
   AddToTableLockSet(txn, lock_mode, oid);
-
   lock.unlock();
   return true;
 }
@@ -180,9 +179,8 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
 
   // unlock the row here
   RemoveFromTableLockSet(txn, oid);
-  // (*req_it)->granted_ = false; // not sure about this
-  req_queue->cv_.notify_all();  // notify waiting transactions
   req_queue->request_queue_.erase(req_it);
+  req_queue->cv_.notify_all();  // notify waiting transactions
 
   lock.unlock();
   return true;
@@ -254,6 +252,10 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     }
   }
 
+  // transaction is not in the queue
+  auto new_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid, rid);
+  req_queue->request_queue_.push_back(new_req);
+
   // wait until all incompatible locks on the table are released
   bool has_incompatible_lock = true;
   while (has_incompatible_lock) {
@@ -273,12 +275,8 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     }
   }
 
-  // transaction is not in the queue, and there is no incompatible lock
-  auto new_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid, rid);
   new_req->granted_ = true;  // grant lock
-  req_queue->request_queue_.push_back(new_req);
   AddToRowLockSet(txn, lock_mode, oid, rid);
-
   lock.unlock();
   return true;
 }
@@ -345,8 +343,8 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
 
   // unlock the row here
   RemoveFromRowLockSet(txn, oid, rid);
-  req_queue->cv_.notify_all();  // notify waiting transactions
   req_queue->request_queue_.erase(req_it);
+  req_queue->cv_.notify_all();  // notify waiting transactions
 
   lock.unlock();
   return true;
@@ -375,8 +373,8 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
       edges.emplace_back(t2);
     }
   }
-  // std::cout << "\nAdd Edge" << std::endl;
-  // PrintGraph();
+  std::cout << "\nAdd Edge" << std::endl;
+  PrintGraph();
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
@@ -415,7 +413,7 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
-  PrintGraph();
+  // PrintGraph();
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;

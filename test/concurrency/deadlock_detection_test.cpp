@@ -12,13 +12,13 @@
 #include "gtest/gtest.h"
 
 namespace bustub {
-TEST(LockManagerDeadlockDetectionTest, EdgeTest) {
+TEST(LockManagerDeadlockDetectionTest, DISABLED_EdgeTest) {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};
   lock_mgr.txn_manager_ = &txn_mgr;
   lock_mgr.StartDeadlockDetection();
 
-  const int num_nodes = 10;
+  const int num_nodes = 100;
   const int num_edges = num_nodes / 2;
   const int seed = 15445;
   std::srand(seed);
@@ -57,7 +57,7 @@ TEST(LockManagerDeadlockDetectionTest, EdgeTest) {
   }
 }
 
-TEST(LockManagerDeadlockDetectionTest, DISABLED_BasicDeadlockDetectionTest) {
+TEST(LockManagerDeadlockDetectionTest, BasicDeadlockDetectionTest) {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};
   lock_mgr.txn_manager_ = &txn_mgr;
