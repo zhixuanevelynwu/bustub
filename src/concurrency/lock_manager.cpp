@@ -82,6 +82,11 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   // wait until all incompatible locks on the table are released
   bool has_incompatible_lock = true;
   while (has_incompatible_lock) {
+    // if txn is aborted while waiting, return false
+    if (txn->GetState() == TransactionState::ABORTED) {
+      req_queue->cv_.notify_all();
+      return false;
+    }
     has_incompatible_lock = false;
     for (auto &req : req_queue->request_queue_) {
       if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
@@ -253,6 +258,11 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   // wait until all incompatible locks on the table are released
   bool has_incompatible_lock = true;
   while (has_incompatible_lock) {
+    // if txn is aborted while waiting, return false
+    if (txn->GetState() == TransactionState::ABORTED) {
+      req_queue->cv_.notify_all();
+      return false;
+    }
     has_incompatible_lock = false;
     for (auto &req : req_queue->request_queue_) {
       if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
@@ -361,7 +371,7 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
   auto waits_for_txn = waits_for_.find(t1);
   if (waits_for_txn == waits_for_.end()) {
     // create a new vertex
-    waits_for_.emplace(t1, std::vector<txn_id_t>(t2));
+    waits_for_.emplace(t1, std::vector<txn_id_t>(1, t2));
   } else {
     // add edge if it is not in graph
     auto edges = waits_for_txn->second;
@@ -485,9 +495,9 @@ void LockManager::RunCycleDetection() {
     {
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
+        // get pointer to the transaction
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
-        // txn->SetState(TransactionState::ABORTED);
-        txn_manager_->Abort(txn);
+        txn->SetState(TransactionState::ABORTED);
 
         // remove from graph
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
