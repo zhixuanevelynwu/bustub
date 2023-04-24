@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "concurrency/lock_manager.h"
+#include <algorithm>
 #include <mutex>
 #include <optional>
 
@@ -374,8 +375,8 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
       edges.emplace_back(t2);
     }
   }
-  std::cout << "\nAdd Edge" << std::endl;
-  PrintGraph();
+  // std::cout << "\nAdd Edge" << std::endl;
+  // PrintGraph();
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
@@ -388,8 +389,8 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
       edges.erase(to_remove);
     }
   }
-  std::cout << "\nRemove Edge" << std::endl;
-  PrintGraph();
+  // std::cout << "\nRemove Edge" << std::endl;
+  // PrintGraph();
 }
 
 void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
@@ -400,8 +401,8 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
       txns.erase(t2_it);
     }
   }
-  std::cout << "\nRemove All Edges Containing " << t2 << std::endl;
-  PrintGraph();
+  // std::cout << "\nRemove All Edges Containing " << t2 << std::endl;
+  // PrintGraph();
 }
 
 /**
@@ -414,59 +415,67 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
+  PrintGraph();
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;
   }
 
-  // initialize data structures
-  std::unordered_set<txn_id_t> ancestors;  // the path lead to the current vertex
-  std::unordered_set<txn_id_t> unvisited;  // all unvisited vertices
-  for (auto &pair : waits_for_) {
-    unvisited.insert(pair.first);
+  // sort vertices in deterministic order
+  std::vector<txn_id_t> vertices;
+  vertices.reserve(waits_for_.size());
+  for (auto &vertex : waits_for_) {
+    vertices.emplace_back(vertex.first);
   }
+  std::sort(vertices.begin(), vertices.end());
+
+  // initialize data structures
+  std::unordered_set<txn_id_t> visited;  // all visited vertices
 
   // helper to check if a vertex is visited
-  auto is_visited = [unvisited](txn_id_t txn_id) -> bool { return unvisited.count(txn_id) == 0; };
+  auto is_visited = [visited](txn_id_t txn_id) -> bool { return visited.count(txn_id) > 0; };
 
-  // visit each unvisited vertex
-  while (!unvisited.empty()) {
+  // recursively visit each vertex once
+  for (auto vertex : vertices) {
+    if (is_visited(vertex)) {
+      continue;
+    }
+
+    // initialize data structures
+    std::unordered_set<txn_id_t> ancestors;
     std::stack<txn_id_t> stack;
-    stack.push(*unvisited.begin());
+    stack.push(vertex);
+
     while (!stack.empty()) {
       auto current = stack.top();
+      visited.insert(current);  // mark as visited
+      ancestors.insert(current);
+      stack.pop();
 
-      // if not visited, mark as visited
-      if (!is_visited(current)) {
-        unvisited.erase(current);
-        ancestors.insert(current);
+      // visit each neighbor
+      auto neighbors = waits_for_.find(current);
+      if (neighbors == waits_for_.end()) {  // no neighbors
+        continue;
+      }
+      for (auto neighbor : neighbors->second) {
+        // add unvisited neighbors to the stack
+        if (!is_visited(neighbor)) {
+          stack.push(neighbor);
+        }
 
-        // visit each neighbor
-        auto neighbors = waits_for_.find(current)->second;
-        for (auto neighbor : neighbors) {
-          // add unvisited neighbors to the stack
-          if (!is_visited(neighbor)) {
-            stack.push(neighbor);
+        // a cycle exsits if a neighbor is visited and is not an ancestor of the current vertex
+        else if (ancestors.count(neighbor) == 0) {
+          auto youngest_txn_id = neighbor;
+          while (!stack.empty()) {
+            youngest_txn_id = std::min(youngest_txn_id, stack.top());
+            stack.pop();
           }
 
-          // a cycle exsits if a neighbor is visited and is not an ancestor of the current vertex
-          else if (ancestors.count(neighbor) == 0) {
-            auto youngest_txn_id = neighbor;
-            while (!stack.empty()) {
-              youngest_txn_id = std::min(youngest_txn_id, stack.top());
-              stack.pop();
-            }
-
-            // write to txn_id
-            *txn_id = youngest_txn_id;
-            return true;
-          }
+          // write to txn_id
+          *txn_id = youngest_txn_id;
+          return true;
         }
       }
-
-      // done visiting the current vertex
-      stack.pop();
-      ancestors.erase(current);
     }
   }
   return false;
@@ -489,7 +498,7 @@ void LockManager::RunCycleDetection() {
     std::this_thread::sleep_for(cycle_detection_interval);
     {
       // build waits_for_ graph
-      table_lock_map_latch_.lock();
+      std::unique_lock<std::mutex> table_lock(table_lock_map_latch_);
       for (auto &pair : table_lock_map_) {
         auto reqs_on_table = pair.second;
         for (auto &waiting_req : reqs_on_table->request_queue_) {
@@ -503,9 +512,9 @@ void LockManager::RunCycleDetection() {
           }
         }
       }
-      table_lock_map_latch_.unlock();
+      table_lock.unlock();
 
-      row_lock_map_latch_.lock();
+      std::unique_lock<std::mutex> row_lock(table_lock_map_latch_);
       for (auto &pair : row_lock_map_) {
         auto reqs_on_row = pair.second;
         for (auto &waiting_req : reqs_on_row->request_queue_) {
@@ -519,18 +528,17 @@ void LockManager::RunCycleDetection() {
           }
         }
       }
-      row_lock_map_latch_.unlock();
+      row_lock.unlock();
 
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
+        std::cout << youngest_txn_in_cycle << std::endl;
         // get pointer to the transaction
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn->SetState(TransactionState::ABORTED);
+        txn_manager_->Abort(txn);
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
       }
-
-      // destroy the graph
-      waits_for_.clear();
     }
   }
 }
