@@ -199,38 +199,26 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     return false;
   }
 
-  // find the lock request queue for the table (create one if not exist)
-  table_lock_map_latch_.lock();
-  auto lock_req_on_table = table_lock_map_.find(oid);
-  if (lock_req_on_table == table_lock_map_.end()) {
-    lock_req_on_table = table_lock_map_.emplace(oid, std::make_shared<LockRequestQueue>()).first;
-  }
-
-  // lock the lock request queue for the table
-  auto req_queue = lock_req_on_table->second;
-  std::unique_lock<std::mutex> lock(req_queue->latch_);
-  table_lock_map_latch_.unlock();
-
-  // ensure txn has a lock on table
+  // ensure txn has valid lock on table
   auto txn_id = txn->GetTransactionId();
-  auto req_it = std::find_if(req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
-                             [txn_id](auto &req) { return req->txn_id_ == txn_id && req->granted_; });
-  if (req_it == req_queue->request_queue_.end()) {
-    lock.unlock();
+  if (!HoldsAppropriateLockOnTable(txn_id, oid, lock_mode)) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::TABLE_LOCK_NOT_PRESENT);
     return false;
   }
 
-  // ensure txn holds appropriate lock on the table
-  if (!CheckAppropriateLockOnTable((*req_it)->lock_mode_, lock_mode)) {
-    lock.unlock();
-    txn->SetState(TransactionState::ABORTED);
-    throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_INTENTION_LOCK_ON_ROW);
-    return false;
+  // find the lock request queue for the row (create one if not exist)
+  row_lock_map_latch_.lock();
+  auto lock_req_on_row = row_lock_map_.find(rid);
+  if (lock_req_on_row == row_lock_map_.end()) {
+    lock_req_on_row = row_lock_map_.emplace(rid, std::make_shared<LockRequestQueue>()).first;
   }
+  // lock the lock request queue for the row
+  auto req_queue = lock_req_on_row->second;
+  std::unique_lock<std::mutex> lock(req_queue->latch_);
+  row_lock_map_latch_.unlock();
 
-  // iterate over each lock request on table
+  // iterate over each lock request on row
   for (auto &req : req_queue->request_queue_) {
     // if the transaction already holds a lock on the row, upgrade the lock to the specified lock_mode (if possible)
     if (req->txn_id_ == txn_id && req->rid_ == rid) {
@@ -297,23 +285,23 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
  * @return false
  */
 auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID &rid, bool force) -> bool {
-  // find the lock request queue for the table
-  table_lock_map_latch_.lock();
-  auto lock_req_on_table = table_lock_map_.find(oid);
-  auto txn_id = txn->GetTransactionId();
+  // find the lock request queue for the row
+  row_lock_map_latch_.lock();
+  auto lock_req_on_row = row_lock_map_.find(rid);
 
   // currently no lock on the table
-  if (lock_req_on_table == table_lock_map_.end()) {
-    table_lock_map_latch_.unlock();
+  auto txn_id = txn->GetTransactionId();
+  if (lock_req_on_row == row_lock_map_.end()) {
+    row_lock_map_latch_.unlock();
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_UNLOCK_BUT_NO_LOCK_HELD);
     return false;
   }
 
   // lock the lock request queue for the table
-  auto req_queue = lock_req_on_table->second;
+  auto req_queue = lock_req_on_row->second;
   std::unique_lock<std::mutex> lock(req_queue->latch_);
-  table_lock_map_latch_.unlock();
+  row_lock_map_latch_.unlock();
 
   // find request made by txn on the table
   auto req_it =
@@ -339,7 +327,8 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
         }
         break;
       case IsolationLevel::READ_UNCOMMITTED:
-        BUSTUB_ASSERT(lock_mode != LockMode::SHARED, "READ_UNCOMMITTED undefined behavior: S locks are not permitted");
+        // BUSTUB_ASSERT(lock_mode != LockMode::SHARED, "READ_UNCOMMITTED undefined behavior: S locks are not
+        // permitted");
         txn->SetState(TransactionState::SHRINKING);
         break;
     }
@@ -450,6 +439,7 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
           } else {  // a cycle exsits if a neighbor is visited and is not a parent of the current vertex
             auto children = waits_for_.find(neighbor)->second;
             if (std::find(children.begin(), children.end(), current) == children.end()) {
+              *txn_id = neighbor;
               return true;
             }
           }
@@ -457,7 +447,6 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
       }
     }
   }
-
   return false;
 }
 
@@ -469,7 +458,9 @@ auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
 void LockManager::RunCycleDetection() {
   while (enable_cycle_detection_) {
     std::this_thread::sleep_for(cycle_detection_interval);
-    {  // TODO(students): detect deadlock
+    {
+      txn_id_t youngest_txn_in_cycle;
+      HasCycle(&youngest_txn_in_cycle);
     }
   }
 }

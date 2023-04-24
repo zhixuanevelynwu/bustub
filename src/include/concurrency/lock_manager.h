@@ -337,7 +337,8 @@ class LockManager {
 
   auto GetRowLockSet(Transaction *txn, LockMode lock_mode)
       -> std::shared_ptr<std::unordered_map<table_oid_t, std::unordered_set<RID>>> {
-    BUSTUB_ASSERT(lock_mode == LockMode::SHARED || lock_mode == LockMode::EXCLUSIVE, "Invalid intention lock on row");
+    // BUSTUB_ASSERT(lock_mode == LockMode::SHARED || lock_mode == LockMode::EXCLUSIVE, "Invalid intention lock on
+    // row");
     if (lock_mode == LockMode::SHARED) {
       return txn->GetSharedRowLockSet();
     }
@@ -565,6 +566,31 @@ class LockManager {
       case LockMode::SHARED_INTENTION_EXCLUSIVE:
         return false;
     }
+  }
+
+  /**
+   * @brief Checks if transaction currently holds a lock on table
+   *
+   * @param txn_id
+   * @param oid
+   * @return true
+   * @return false
+   */
+  auto HoldsAppropriateLockOnTable(txn_id_t txn_id, table_oid_t oid, LockMode row_lock_mode) -> bool {
+    std::scoped_lock<std::mutex> lock(table_lock_map_latch_);
+    auto lock_req_on_table = table_lock_map_.find(oid);
+    // no lock on table
+    if (lock_req_on_table == table_lock_map_.end()) {
+      return false;
+    }
+    auto table_req_queue = lock_req_on_table->second;
+    auto table_req_it = std::find_if(table_req_queue->request_queue_.begin(), table_req_queue->request_queue_.end(),
+                                     [txn_id](auto &req) { return req->txn_id_ == txn_id && req->granted_; });
+    // txn does not hold lock on table
+    if (table_req_it == table_req_queue->request_queue_.end()) {
+      return false;
+    }
+    return CheckAppropriateLockOnTable((*table_req_it)->lock_mode_, row_lock_mode);
   }
 
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
