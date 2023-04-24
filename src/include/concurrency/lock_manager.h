@@ -599,6 +599,19 @@ class LockManager {
 
   /** Graph API Helper */
 
+  void PrintGraph() {
+    std::cout << "================ waits_for_graph ================" << std::endl;
+    std::cout << "size: " << waits_for_.size() << " " << std::endl;
+    for (auto &pair : waits_for_) {
+      std::cout << pair.first << " -> ";
+      for (auto t2 : pair.second) {
+        std::cout << t2 << " ";
+      }
+      std::cout << std::endl;
+    }
+    std::cout << "================ waits_for_graph ================" << std::endl;
+  }
+
   /** Structure that holds lock requests for a given table oid */
   std::unordered_map<table_oid_t, std::shared_ptr<LockRequestQueue>> table_lock_map_;
   /** Coordination */

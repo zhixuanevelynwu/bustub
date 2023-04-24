@@ -91,7 +91,6 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     for (auto &req : req_queue->request_queue_) {
       if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
         // wait until the transaction holding the lock releases it
-        AddEdge(txn_id, req->txn_id_);
         req_queue->cv_.wait(lock);
         has_incompatible_lock = true;
         break;
@@ -267,7 +266,6 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     for (auto &req : req_queue->request_queue_) {
       if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
         // wait until the transaction holding the lock releases it
-        AddEdge(txn_id, req->txn_id_);
         req_queue->cv_.wait(lock);
         has_incompatible_lock = true;
         break;
@@ -367,7 +365,6 @@ void LockManager::UnlockAll() {
 
 /** Graph API */
 void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
-  std::scoped_lock lock(waits_for_latch_);
   auto waits_for_txn = waits_for_.find(t1);
   if (waits_for_txn == waits_for_.end()) {
     // create a new vertex
@@ -379,10 +376,11 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
       edges.emplace_back(t2);
     }
   }
+  std::cout << "\nAdd Edge" << std::endl;
+  PrintGraph();
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
-  std::scoped_lock lock(waits_for_latch_);
   auto waits_for_txn = waits_for_.find(t1);
   // remove edge if it is in graph
   if (waits_for_txn != waits_for_.end()) {
@@ -392,10 +390,11 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
       edges.erase(to_remove);
     }
   }
+  std::cout << "\nRemove Edge" << std::endl;
+  PrintGraph();
 }
 
 void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
-  std::scoped_lock lock(waits_for_latch_);
   for (auto &pair : waits_for_) {
     auto txns = pair.second;
     auto t2_it = std::find(txns.begin(), txns.end(), t2);
@@ -403,6 +402,8 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
       txns.erase(t2_it);
     }
   }
+  std::cout << "\nRemove All Edges Containing " << t2 << std::endl;
+  PrintGraph();
 }
 
 /**
@@ -415,8 +416,6 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
-  std::scoped_lock lock(waits_for_latch_);  // necessary?
-
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;
@@ -476,8 +475,6 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
 }
 
 auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
-  std::scoped_lock<std::mutex> lock(waits_for_latch_);
-
   std::vector<std::pair<txn_id_t, txn_id_t>> edges;
   for (auto &vertex : waits_for_) {
     auto t1 = vertex.first;
@@ -493,15 +490,50 @@ void LockManager::RunCycleDetection() {
   while (enable_cycle_detection_) {
     std::this_thread::sleep_for(cycle_detection_interval);
     {
+      // build waits_for_ graph
+      table_lock_map_latch_.lock();
+      for (auto &pair : table_lock_map_) {
+        auto reqs_on_table = pair.second;
+        for (auto &waiting_req : reqs_on_table->request_queue_) {
+          // ungranted requests should be waiting for all granted ones
+          if (!waiting_req->granted_) {
+            for (auto &req : reqs_on_table->request_queue_) {
+              if (req->granted_) {
+                AddEdge(waiting_req->txn_id_, req->txn_id_);
+              }
+            }
+          }
+        }
+      }
+      table_lock_map_latch_.unlock();
+
+      row_lock_map_latch_.lock();
+      for (auto &pair : row_lock_map_) {
+        auto reqs_on_row = pair.second;
+        for (auto &waiting_req : reqs_on_row->request_queue_) {
+          if (!waiting_req->granted_) {
+            // ungranted requests should be waiting for all granted ones
+            for (auto &req : reqs_on_row->request_queue_) {
+              if (req->granted_) {
+                AddEdge(waiting_req->txn_id_, req->txn_id_);
+              }
+            }
+          }
+        }
+      }
+      row_lock_map_latch_.unlock();
+
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
         // get pointer to the transaction
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn->SetState(TransactionState::ABORTED);
-
         // remove from graph
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
       }
+
+      // destroy the graph
+      waits_for_.clear();
     }
   }
 }
