@@ -413,38 +413,46 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
 
   // store all unvisited vertices
   std::unordered_set<txn_id_t> unvisited;
+  std::unordered_set<txn_id_t> ancestors;
   for (auto &pair : waits_for_) {
     unvisited.insert(pair.first);
   }
 
   // helper to check if a node is visited
   auto is_visited = [unvisited](txn_id_t txn_id) -> bool { return unvisited.count(txn_id) == 0; };
+
+  // visit each unvisited node
   while (!unvisited.empty()) {
-    // pick any unvisited vertices to start
     std::stack<txn_id_t> stack;
     stack.push(*unvisited.begin());
     while (!stack.empty()) {
       auto current = stack.top();
-      stack.pop();
 
       // if not visited, mark as visited
       if (!is_visited(current)) {
         unvisited.erase(current);
+        ancestors.insert(current);
 
         // visit each neighbor
         auto neighbors = waits_for_.find(current)->second;
         for (auto neighbor : neighbors) {
           if (!is_visited(neighbor)) {  // add unvisited neighbors to the stack
             stack.push(neighbor);
-          } else {  // a cycle exsits if a neighbor is visited and is not a parent of the current vertex
-            auto children = waits_for_.find(neighbor)->second;
-            if (std::find(children.begin(), children.end(), current) == children.end()) {
-              *txn_id = neighbor;
-              return true;
+          } else if (ancestors.count(neighbor) == 0) {
+            // a cycle exsits if a neighbor is visited and is not an ancestor of the current vertex
+            auto youngest_txn_id = neighbor;
+            while (!stack.empty()) {
+              youngest_txn_id = std::min(youngest_txn_id, stack.top());
+              stack.pop();
             }
+            *txn_id = youngest_txn_id;
+            return true;
           }
         }
       }
+
+      stack.pop();
+      ancestors.erase(current);
     }
   }
   return false;
