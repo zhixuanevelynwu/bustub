@@ -347,8 +347,14 @@ class LockManager {
 
   auto HoldsRowOnTable(Transaction *txn, table_oid_t oid) -> bool {
     auto row_slock_set = txn->GetSharedRowLockSet();
+    auto slocked_rows = row_slock_set->find(oid);
+    if (slocked_rows != row_slock_set->end() && !slocked_rows->second.empty()) {
+      return true;
+    }
+
     auto row_xlock_set = txn->GetExclusiveRowLockSet();
-    return row_slock_set->find(oid) != row_slock_set->end() || row_xlock_set->find(oid) != row_xlock_set->end();
+    auto xlocked_rows = row_xlock_set->find(oid);
+    return xlocked_rows != row_xlock_set->end() && !xlocked_rows->second.empty();
   }
 
   /** Book Keeping Helpers */

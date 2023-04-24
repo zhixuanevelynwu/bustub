@@ -178,7 +178,6 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   }
 
   // unlock the row here
-  RemoveAllEdgesContaining(txn_id);
   RemoveFromTableLockSet(txn, oid);
   // (*req_it)->granted_ = false; // not sure about this
   req_queue->cv_.notify_all();  // notify waiting transactions
@@ -344,7 +343,6 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   }
 
   // unlock the row here
-  RemoveAllEdgesContaining(txn_id);
   RemoveFromRowLockSet(txn, oid, rid);
   req_queue->cv_.notify_all();  // notify waiting transactions
   req_queue->request_queue_.erase(req_it);
@@ -528,7 +526,6 @@ void LockManager::RunCycleDetection() {
         // get pointer to the transaction
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn->SetState(TransactionState::ABORTED);
-        // remove from graph
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
       }
 

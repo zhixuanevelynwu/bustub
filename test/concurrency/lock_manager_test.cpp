@@ -343,6 +343,7 @@ void AbortTest1() {
   CheckTxnRowLockSize(txn3, oid, 0, 0);
 
   /** Abort txn2 */
+  CheckTxnRowLockSize(txn2, oid, 0, 0);
   txn_mgr.Abort(txn2);
 
   /** txn1 releases lock */
@@ -362,6 +363,6 @@ void AbortTest1() {
   delete txn3;
 }
 
-TEST(LockManagerTest, DISABLED_RowAbortTest1) { AbortTest1(); }  // NOLINT
+TEST(LockManagerTest, RowAbortTest1) { AbortTest1(); }  // NOLINT
 
 }  // namespace bustub
