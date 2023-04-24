@@ -460,7 +460,14 @@ void LockManager::RunCycleDetection() {
     std::this_thread::sleep_for(cycle_detection_interval);
     {
       txn_id_t youngest_txn_in_cycle;
-      HasCycle(&youngest_txn_in_cycle);
+      while (HasCycle(&youngest_txn_in_cycle)) {
+        auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
+        // txn->SetState(TransactionState::ABORTED);
+        txn_manager_->Abort(txn);
+
+        // remove from graph
+        RemoveAllEdgesContaining(youngest_txn_in_cycle);
+      }
     }
   }
 }
