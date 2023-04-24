@@ -532,6 +532,11 @@ void LockManager::RunCycleDetection() {
       }
       row_lock_map_latch_.unlock();
 
+      // sort edge lists in deterministic order
+      for (auto &vertex : waits_for_) {
+        std::sort(vertex.second.begin(), vertex.second.end());
+      }
+
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
