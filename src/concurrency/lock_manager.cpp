@@ -90,6 +90,9 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   while (has_incompatible_lock) {
     // if txn is aborted while waiting, return false
     if (txn->GetState() == TransactionState::ABORTED) {
+      req_queue->request_queue_.erase(
+          std::remove(req_queue->request_queue_.begin(), req_queue->request_queue_.end(), new_req),
+          req_queue->request_queue_.end());
       req_queue->cv_.notify_all();
       return false;
     }
@@ -261,6 +264,9 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   while (has_incompatible_lock) {
     // if txn is aborted while waiting, return false
     if (txn->GetState() == TransactionState::ABORTED) {
+      req_queue->request_queue_.erase(
+          std::remove(req_queue->request_queue_.begin(), req_queue->request_queue_.end(), new_req),
+          req_queue->request_queue_.end());
       req_queue->cv_.notify_all();
       return false;
     }
@@ -373,8 +379,8 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
       edges.emplace_back(t2);
     }
   }
-  std::cout << "\nAdd Edge" << std::endl;
-  PrintGraph();
+  // std::cout << "\nAdd Edge" << std::endl;
+  // PrintGraph();
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
@@ -392,11 +398,16 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
 }
 
 void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
+  // remove vertex t2
+  waits_for_.erase(t2);
   for (auto &pair : waits_for_) {
-    auto txns = pair.second;
-    auto t2_it = std::find(txns.begin(), txns.end(), t2);
-    if (t2_it != txns.end()) {
-      txns.erase(t2_it);
+    // for each vertex, find its connection to t2
+    auto neighbors = pair.second;
+    auto t2_it = std::find(neighbors.begin(), neighbors.end(), t2);
+
+    // if exists, remove it
+    if (t2_it != neighbors.end()) {
+      neighbors.erase(t2_it);
     }
   }
   // std::cout << "\nRemove All Edges Containing " << t2 << std::endl;
@@ -426,16 +437,11 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
     vertices.emplace_back(vertex.first);
   }
   std::sort(vertices.begin(), vertices.end());
-
-  // initialize data structures
-  std::unordered_set<txn_id_t> visited;  // all visited vertices
-
-  // helper to check if a vertex is visited
-  auto is_visited = [visited](txn_id_t txn_id) -> bool { return visited.count(txn_id) > 0; };
+  std::unordered_set<txn_id_t> visited;
 
   // recursively visit each vertex once
   for (auto vertex : vertices) {
-    if (is_visited(vertex)) {
+    if (visited.count(vertex) > 0) {
       continue;
     }
 
@@ -455,20 +461,18 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
       if (neighbors == waits_for_.end()) {  // no neighbors
         continue;
       }
+
       for (auto neighbor : neighbors->second) {
         // add unvisited neighbors to the stack
-        if (!is_visited(neighbor)) {
+        if (visited.count(neighbor) == 0) {
           stack.push(neighbor);
         }
-
-        // a cycle exsits if a neighbor is visited and is not an ancestor of the current vertex
-        else if (ancestors.count(neighbor) == 0) {
+        // a cycle exsits if a neighbor is visited and is an ancestor of the current vertex
+        else if (ancestors.count(neighbor) > 0) {
           auto youngest_txn_id = neighbor;
-          while (!stack.empty()) {
-            youngest_txn_id = std::min(youngest_txn_id, stack.top());
-            stack.pop();
+          for (auto id : ancestors) {
+            youngest_txn_id = std::max(youngest_txn_id, id);
           }
-
           // write to txn_id
           *txn_id = youngest_txn_id;
           return true;
@@ -496,7 +500,7 @@ void LockManager::RunCycleDetection() {
     std::this_thread::sleep_for(cycle_detection_interval);
     {
       // build waits_for_ graph
-      std::unique_lock<std::mutex> table_lock(table_lock_map_latch_);
+      table_lock_map_latch_.lock();
       for (auto &pair : table_lock_map_) {
         auto reqs_on_table = pair.second;
         for (auto &waiting_req : reqs_on_table->request_queue_) {
@@ -510,9 +514,9 @@ void LockManager::RunCycleDetection() {
           }
         }
       }
-      table_lock.unlock();
+      table_lock_map_latch_.unlock();
 
-      std::unique_lock<std::mutex> row_lock(table_lock_map_latch_);
+      row_lock_map_latch_.lock();
       for (auto &pair : row_lock_map_) {
         auto reqs_on_row = pair.second;
         for (auto &waiting_req : reqs_on_row->request_queue_) {
@@ -526,17 +530,15 @@ void LockManager::RunCycleDetection() {
           }
         }
       }
-      row_lock.unlock();
+      row_lock_map_latch_.unlock();
 
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
-        std::cout << youngest_txn_in_cycle << std::endl;
-        // get pointer to the transaction
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
-        txn->SetState(TransactionState::ABORTED);
         txn_manager_->Abort(txn);
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
       }
+      waits_for_.clear();
     }
   }
 }
