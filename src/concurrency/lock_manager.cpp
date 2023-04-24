@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "concurrency/lock_manager.h"
+#include <mutex>
 #include <optional>
 
 #include "common/config.h"
@@ -411,9 +412,9 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
     return false;
   }
 
-  // store all unvisited vertices
-  std::unordered_set<txn_id_t> unvisited;
-  std::unordered_set<txn_id_t> ancestors;
+  // initialize data structures
+  std::unordered_set<txn_id_t> ancestors;  // stores the path lead to the current vertex
+  std::unordered_set<txn_id_t> unvisited;  // stores all unvisited vertices
   for (auto &pair : waits_for_) {
     unvisited.insert(pair.first);
   }
@@ -436,21 +437,27 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
         // visit each neighbor
         auto neighbors = waits_for_.find(current)->second;
         for (auto neighbor : neighbors) {
-          if (!is_visited(neighbor)) {  // add unvisited neighbors to the stack
+          // add unvisited neighbors to the stack
+          if (!is_visited(neighbor)) {
             stack.push(neighbor);
-          } else if (ancestors.count(neighbor) == 0) {
-            // a cycle exsits if a neighbor is visited and is not an ancestor of the current vertex
+          }
+
+          // a cycle exsits if a neighbor is visited and is not an ancestor of the current vertex
+          else if (ancestors.count(neighbor) == 0) {
             auto youngest_txn_id = neighbor;
             while (!stack.empty()) {
               youngest_txn_id = std::min(youngest_txn_id, stack.top());
               stack.pop();
             }
+
+            // write to txn_id
             *txn_id = youngest_txn_id;
             return true;
           }
         }
       }
 
+      // done visiting the current node
       stack.pop();
       ancestors.erase(current);
     }
@@ -459,7 +466,16 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
 }
 
 auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
-  std::vector<std::pair<txn_id_t, txn_id_t>> edges(0);
+  std::scoped_lock<std::mutex> lock(waits_for_latch_);
+
+  std::vector<std::pair<txn_id_t, txn_id_t>> edges;
+  for (auto &vertex : waits_for_) {
+    auto t1 = vertex.first;
+    for (auto t2 : vertex.second) {
+      edges.emplace_back(t1, t2);
+    }
+  }
+
   return edges;
 }
 
