@@ -413,16 +413,16 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
   }
 
   // initialize data structures
-  std::unordered_set<txn_id_t> ancestors;  // stores the path lead to the current vertex
-  std::unordered_set<txn_id_t> unvisited;  // stores all unvisited vertices
+  std::unordered_set<txn_id_t> ancestors;  // the path lead to the current vertex
+  std::unordered_set<txn_id_t> unvisited;  // all unvisited vertices
   for (auto &pair : waits_for_) {
     unvisited.insert(pair.first);
   }
 
-  // helper to check if a node is visited
+  // helper to check if a vertex is visited
   auto is_visited = [unvisited](txn_id_t txn_id) -> bool { return unvisited.count(txn_id) == 0; };
 
-  // visit each unvisited node
+  // visit each unvisited vertex
   while (!unvisited.empty()) {
     std::stack<txn_id_t> stack;
     stack.push(*unvisited.begin());
@@ -457,7 +457,7 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
         }
       }
 
-      // done visiting the current node
+      // done visiting the current vertex
       stack.pop();
       ancestors.erase(current);
     }
