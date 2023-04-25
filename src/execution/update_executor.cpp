@@ -37,44 +37,48 @@ void UpdateExecutor::Init() { child_executor_->Init(); }
  * @return `true` if a tuple was produced, `false` if there are no more tuples
  */
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  Tuple t;
-  RID r;
-  auto catalog = exec_ctx_->GetCatalog();
-  auto table_meta = catalog->GetTable(plan_->TableOid());
-  auto indexes = catalog->GetTableIndexes(table_meta->name_);
-  // Update tuples
-  int count = 0;
-  while (child_executor_->Next(&t, &r)) {
-    // First remove the tuple from the table
-    const TupleMeta old_meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
-    table_meta->table_->UpdateTupleMeta(old_meta, r);
-    // Then insert the new tuple into the table
-    const TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
-    std::vector<Value> vec;
-    vec.reserve(table_meta->schema_.GetColumns().size());
-    for (const auto &expr : plan_->target_expressions_) {
-      vec.emplace_back(expr->Evaluate(&t, child_executor_->GetOutputSchema()));
-    }
-    Tuple new_tuple = Tuple(vec, &child_executor_->GetOutputSchema());
-    auto new_rid = table_meta->table_->InsertTuple(new_meta, new_tuple);
-    BUSTUB_ASSERT(new_rid, "Insertion failed");
-    // Update indexes (if any)
-    for (auto index_meta : indexes) {
-      auto old_key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
-      index_meta->index_->DeleteEntry(old_key, r, nullptr);
-      auto key =
-          new_tuple.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
-      index_meta->index_->InsertEntry(key, *new_rid, nullptr);
-    }
-    count++;
-  }
-  // Emit number of updated rows
-  std::vector<Value> vec(1, Value(INTEGER, count));
-  const std::vector<Column> cols(1, Column("count", INTEGER));
-  const auto s = Schema(cols);
-  *tuple = Tuple(vec, &s);
   if (!updated_) {
     updated_ = true;
+    auto catalog = exec_ctx_->GetCatalog();
+    auto table_meta = catalog->GetTable(plan_->TableOid());
+    auto indexes = catalog->GetTableIndexes(table_meta->name_);
+
+    // Update tuples
+    int count = 0;
+    Tuple t;
+    RID r;
+    while (child_executor_->Next(&t, &r)) {
+      // First remove the tuple from the table
+      const TupleMeta old_meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
+      table_meta->table_->UpdateTupleMeta(old_meta, r);
+
+      // Then insert the new tuple into the table
+      const TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
+      std::vector<Value> vec;
+      vec.reserve(table_meta->schema_.GetColumns().size());
+      for (const auto &expr : plan_->target_expressions_) {
+        vec.emplace_back(expr->Evaluate(&t, child_executor_->GetOutputSchema()));
+      }
+      Tuple new_tuple = Tuple(vec, &child_executor_->GetOutputSchema());
+      auto new_rid = table_meta->table_->InsertTuple(new_meta, new_tuple);
+      BUSTUB_ASSERT(new_rid, "Insertion failed");
+
+      // Update indexes (if any)
+      for (auto index_meta : indexes) {
+        auto old_key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
+        index_meta->index_->DeleteEntry(old_key, r, nullptr);
+        auto key =
+            new_tuple.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
+        index_meta->index_->InsertEntry(key, *new_rid, nullptr);
+      }
+      count++;
+    }
+
+    // Emit number of updated rows
+    std::vector<Value> vec(1, Value(INTEGER, count));
+    const std::vector<Column> cols(1, Column("count", INTEGER));
+    const auto s = Schema(cols);
+    *tuple = Tuple(vec, &s);
     return true;
   }
   return false;

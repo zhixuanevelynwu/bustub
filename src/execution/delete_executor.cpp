@@ -39,11 +39,13 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     Tuple t;
     RID r;
     while (child_executor_->Next(&t, &r)) {
-      const TupleMeta old_meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
-      table_meta->table_->UpdateTupleMeta(old_meta, r);
+      // record table before deletion
+      auto table_heap = table_meta->table_.get();
+
+      table_meta->table_->UpdateTupleMeta({INVALID_TXN_ID, INVALID_TXN_ID, true}, r);
 
       // maintain write record
-      txn->GetWriteSet()->push_back({oid, r, table_meta->table_.get()});
+      txn->AppendTableWriteRecord({oid, r, table_heap});
 
       // Update indexes (if any)
       for (auto index_meta : indexes) {

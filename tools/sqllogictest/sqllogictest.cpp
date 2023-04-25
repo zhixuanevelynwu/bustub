@@ -191,9 +191,9 @@ auto main(int argc, char **argv) -> int {  // NOLINT
   // std::string filename = program.get<std::string>("file");
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.00-primer.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.01-seqscan.slt";
-  // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.02-insert.slt";
+  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.02-insert.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.03-update.slt";
-  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.04-delete.slt";
+  // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.04-delete.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.05-index-scan.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.06-empty-table.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.07-simple-agg.slt";

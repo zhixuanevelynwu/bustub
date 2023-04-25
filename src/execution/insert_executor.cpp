@@ -51,8 +51,8 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto txn = exec_ctx_->GetTransaction();
     auto oid = plan_->TableOid();
     auto lock_mgr = exec_ctx_->GetLockManager();
-    if (!lock_mgr->LockTable(txn, LockManager::LockMode::EXCLUSIVE, oid)) {
-      throw ExecutionException("insert: failed acquiring xlock on table");
+    if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid)) {
+      throw ExecutionException("insert: failed acquiring IX lock on table");
     }
 
     // store info as needed
@@ -65,12 +65,19 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     Tuple t;
     RID r;
     while (child_executor_->Next(&t, &r)) {
+      // record table before insertion
+      auto table_heap = table_meta->table_.get();
+
       const TupleMeta tuple_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
       const auto new_rid = table_meta->table_->InsertTuple(tuple_meta, t);
+      if (!lock_mgr->LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, *new_rid)) {
+        throw ExecutionException("insert: failed acquiring X lock");
+      }
+
       BUSTUB_ASSERT(new_rid, "InsertTuple() should not return nullptr.");
 
       // maintain write record
-      txn->GetWriteSet()->push_back({oid, r, table_meta->table_.get()});
+      txn->AppendTableWriteRecord({oid, *new_rid, table_heap});
 
       // update indexes (if any)
       for (auto index_meta : indexes) {

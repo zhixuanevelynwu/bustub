@@ -12,8 +12,8 @@
 
 #include "concurrency/lock_manager.h"
 #include <algorithm>
-#include <mutex>
 #include <optional>
+#include <stack>
 
 #include "common/config.h"
 #include "concurrency/transaction.h"
@@ -468,9 +468,8 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
         // add unvisited neighbors to the stack
         if (visited.count(neighbor) == 0) {
           stack.push(neighbor);
-        }
-        // a cycle exsits if a neighbor is visited and is an ancestor of the current vertex
-        else if (ancestors.count(neighbor) > 0) {
+        } else if (ancestors.count(neighbor) > 0) {
+          // a cycle exsits if a neighbor is visited and is an ancestor of the current vertex
           auto youngest_txn_id = neighbor;
           for (auto id : ancestors) {
             youngest_txn_id = std::max(youngest_txn_id, id);
