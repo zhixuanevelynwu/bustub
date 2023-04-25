@@ -229,7 +229,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     // if the transaction already holds a lock on the row, upgrade the lock to the specified lock_mode (if possible)
     if (req->txn_id_ == txn_id && req->rid_ == rid) {
       // requested lock mode is the same as that of the lock presently held
-      if (req->lock_mode_ == lock_mode) {
+      if (req->lock_mode_ == lock_mode || CanLockUpgrade(lock_mode, req->lock_mode_)) {
         req->granted_ = true;  // grant lock
         lock.unlock();
         return true;
@@ -328,22 +328,24 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   }
 
   // unlocking S/X lock change the transaction state
-  auto lock_mode = (*req_it)->lock_mode_;
-  if (lock_mode == LockMode::SHARED || lock_mode == LockMode::EXCLUSIVE) {
-    switch (txn->GetIsolationLevel()) {
-      case IsolationLevel::REPEATABLE_READ:
-        txn->SetState(TransactionState::SHRINKING);
-        break;
-      case IsolationLevel::READ_COMMITTED:
-        if (lock_mode == LockMode::EXCLUSIVE) {
+  if (!force) {  // ignore for force unlock
+    auto lock_mode = (*req_it)->lock_mode_;
+    if (lock_mode == LockMode::SHARED || lock_mode == LockMode::EXCLUSIVE) {
+      switch (txn->GetIsolationLevel()) {
+        case IsolationLevel::REPEATABLE_READ:
           txn->SetState(TransactionState::SHRINKING);
-        }
-        break;
-      case IsolationLevel::READ_UNCOMMITTED:
-        // BUSTUB_ASSERT(lock_mode != LockMode::SHARED, "READ_UNCOMMITTED undefined behavior: S locks are not
-        // permitted");
-        txn->SetState(TransactionState::SHRINKING);
-        break;
+          break;
+        case IsolationLevel::READ_COMMITTED:
+          if (lock_mode == LockMode::EXCLUSIVE) {
+            txn->SetState(TransactionState::SHRINKING);
+          }
+          break;
+        case IsolationLevel::READ_UNCOMMITTED:
+          // BUSTUB_ASSERT(lock_mode != LockMode::SHARED, "READ_UNCOMMITTED undefined behavior: S locks are not
+          // permitted");
+          txn->SetState(TransactionState::SHRINKING);
+          break;
+      }
     }
   }
 

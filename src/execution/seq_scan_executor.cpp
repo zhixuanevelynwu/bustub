@@ -20,36 +20,31 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
       iter_(exec_ctx_->GetCatalog()->GetTable(plan_->table_name_)->table_->MakeEagerIterator()) {}
 
 void SeqScanExecutor::Init() {
+  // get lock info
   auto txn = exec_ctx_->GetTransaction();
   auto lock_mgr = exec_ctx_->GetLockManager();
   auto isolation = txn->GetIsolationLevel();
   auto oid = plan_->GetTableOid();
-  if (exec_ctx_->IsDelete()) {
+
+  // lock table accordingly
+  if (exec_ctx_->IsDelete()) {  // delete operation -> IX lock the entire table
     if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid)) {
       throw ExecutionException("seqscan <delete>: failed acquiring IX lock on table");
     }
-  } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {
+  } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {  // otherwise, IS unless READ_UNCOMMITED
     if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_SHARED, oid)) {
       throw ExecutionException("seqscan: failed acquiring IS lock on table");
     }
   }
 }
 
-/*
-Get the current position of the table iterator.
-Lock the tuple as needed for the isolation level.
-Fetch the tuple. Check tuple meta, and if you have implemented filter pushdown to scan, check the predicate.
-If the tuple should not be read by this transaction, force unlock the row. Otherwise, unlock the row as needed for the
-isolation level. If the current operation is delete (by checking executor context IsDelete(), which will be set to true
-for DELETE and UPDATE), you should assume all tuples scanned will be deleted, and you should take X locks on the table
-and tuple as necessary in step 2.
-*/
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto txn = exec_ctx_->GetTransaction();
   auto lock_mgr = exec_ctx_->GetLockManager();
   auto isolation = txn->GetIsolationLevel();
   auto oid = plan_->GetTableOid();
 
+  // fetch the next tuple
   while (!iter_.IsEnd()) {
     auto r = iter_.GetRID();
 
@@ -70,10 +65,10 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
     // tuple deleted -> force unlock
     if (m.is_deleted_) {
-      lock_mgr->UnlockRow(txn, oid, r);
+      lock_mgr->UnlockRow(txn, oid, r, true);
     } else {
       // release lock immediately for READ_UNCOMMITED
-      if (isolation == IsolationLevel::READ_COMMITTED) {
+      if (isolation == IsolationLevel::READ_COMMITTED && !exec_ctx_->IsDelete()) {
         lock_mgr->UnlockRow(txn, oid, r);
       }
       // write tuple to output

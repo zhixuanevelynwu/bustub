@@ -44,7 +44,9 @@ void InsertExecutor::Init() { child_executor_->Init(); }
  */
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (!inserted_) {
+    // insert only once
     inserted_ = true;
+
     // take table lock
     auto txn = exec_ctx_->GetTransaction();
     auto oid = plan_->TableOid();
@@ -58,7 +60,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto table_meta = catalog->GetTable(oid);
     auto indexes = catalog->GetTableIndexes(table_meta->name_);
 
-    // insert tuples into table
+    // insert all tuples into table
     int count = 0;
     Tuple t;
     RID r;
@@ -66,6 +68,9 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       const TupleMeta tuple_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
       const auto new_rid = table_meta->table_->InsertTuple(tuple_meta, t);
       BUSTUB_ASSERT(new_rid, "InsertTuple() should not return nullptr.");
+
+      // maintain write record
+      txn->GetWriteSet()->push_back({oid, r, table_meta->table_.get()});
 
       // update indexes (if any)
       for (auto index_meta : indexes) {

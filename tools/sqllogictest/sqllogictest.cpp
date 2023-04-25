@@ -193,7 +193,7 @@ auto main(int argc, char **argv) -> int {  // NOLINT
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.01-seqscan.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.02-insert.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.03-update.slt";
-  // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.04-delete.slt";
+  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.04-delete.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.05-index-scan.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.06-empty-table.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.07-simple-agg.slt";
@@ -205,7 +205,7 @@ auto main(int argc, char **argv) -> int {  // NOLINT
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.14-hash-join.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.15-multi-way-hash-join.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.16-sort-limit.slt";
-  std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.17-topn.slt";
+  // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.17-topn.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.18-integration-1.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.19-integration-2.slt";
   // std::string filename = "/Users/xx/Desktop/database/bustub-private/test/sql/p3.leaderboard-q1.slt";
