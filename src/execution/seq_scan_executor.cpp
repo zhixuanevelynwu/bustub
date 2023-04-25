@@ -19,7 +19,21 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
       plan_(plan),
       iter_(exec_ctx_->GetCatalog()->GetTable(plan_->table_name_)->table_->MakeEagerIterator()) {}
 
-void SeqScanExecutor::Init() {}
+void SeqScanExecutor::Init() {
+  auto txn = exec_ctx_->GetTransaction();
+  auto lock_mgr = exec_ctx_->GetLockManager();
+  auto isolation = txn->GetIsolationLevel();
+  auto oid = plan_->GetTableOid();
+  if (exec_ctx_->IsDelete()) {
+    if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid)) {
+      throw ExecutionException("seqscan <delete>: failed acquiring IX lock on table");
+    }
+  } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {
+    if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_SHARED, oid)) {
+      throw ExecutionException("seqscan: failed acquiring IS lock on table");
+    }
+  }
+}
 
 /*
 Get the current position of the table iterator.
@@ -41,9 +55,13 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
     // lock based on context
     if (exec_ctx_->IsDelete()) {  // take X lock if current op is delete
-      lock_mgr->LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, r);
+      if (!lock_mgr->LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, r)) {
+        throw ExecutionException("seqscan <delete>: failed acquiring X lock");
+      }
     } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {  // Slock the tuple except for READ_UNCOMMIT
-      lock_mgr->LockRow(txn, LockManager::LockMode::SHARED, oid, r);
+      if (!lock_mgr->LockRow(txn, LockManager::LockMode::SHARED, oid, r)) {
+        throw ExecutionException("seqscan: failed acquiring S lock");
+      }
     }
 
     // store tuple data

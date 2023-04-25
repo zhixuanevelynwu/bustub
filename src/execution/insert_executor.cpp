@@ -43,31 +43,43 @@ void InsertExecutor::Init() { child_executor_->Init(); }
  * NOTE: InsertExecutor::Next() returns true with number of inserted rows produced only once.
  */
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  Tuple t;
-  RID r;
-  auto catalog = exec_ctx_->GetCatalog();
-  auto table_meta = catalog->GetTable(plan_->TableOid());
-  auto indexes = catalog->GetTableIndexes(table_meta->name_);
-  // Insert tuples into table
-  int count = 0;
-  while (child_executor_->Next(&t, &r)) {
-    const TupleMeta tuple_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
-    const auto new_rid = table_meta->table_->InsertTuple(tuple_meta, t);
-    BUSTUB_ASSERT(new_rid, "InsertTuple() should not return nullptr.");
-    // Update indexes (if any)
-    for (auto index_meta : indexes) {
-      auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
-      index_meta->index_->InsertEntry(key, *new_rid, nullptr);
-    }
-    count++;
-  }
-  // Emit number of inserted rows
-  std::vector<Value> vec(1, Value(INTEGER, count));
-  const std::vector<Column> cols(1, Column("count", INTEGER));
-  const auto s = Schema(cols);
-  *tuple = Tuple(vec, &s);
   if (!inserted_) {
     inserted_ = true;
+    // take table lock
+    auto txn = exec_ctx_->GetTransaction();
+    auto oid = plan_->TableOid();
+    auto lock_mgr = exec_ctx_->GetLockManager();
+    if (!lock_mgr->LockTable(txn, LockManager::LockMode::EXCLUSIVE, oid)) {
+      throw ExecutionException("insert: failed acquiring xlock on table");
+    }
+
+    // store info as needed
+    auto catalog = exec_ctx_->GetCatalog();
+    auto table_meta = catalog->GetTable(oid);
+    auto indexes = catalog->GetTableIndexes(table_meta->name_);
+
+    // insert tuples into table
+    int count = 0;
+    Tuple t;
+    RID r;
+    while (child_executor_->Next(&t, &r)) {
+      const TupleMeta tuple_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
+      const auto new_rid = table_meta->table_->InsertTuple(tuple_meta, t);
+      BUSTUB_ASSERT(new_rid, "InsertTuple() should not return nullptr.");
+
+      // update indexes (if any)
+      for (auto index_meta : indexes) {
+        auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
+        index_meta->index_->InsertEntry(key, *new_rid, nullptr);
+      }
+      count++;
+    }
+
+    // emit number of inserted rows
+    std::vector<Value> vec(1, Value(INTEGER, count));
+    const std::vector<Column> cols(1, Column("count", INTEGER));
+    const auto s = Schema(cols);
+    *tuple = Tuple(vec, &s);
     return true;
   }
   return false;
