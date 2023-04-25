@@ -59,6 +59,104 @@ void CheckTableLockSizes(Transaction *txn, size_t s_size, size_t x_size, size_t 
   EXPECT_EQ(six_size, txn->GetSharedIntentionExclusiveTableLockSet()->size());
 }
 
+/*
+  22: --- DeleteTestA.1 ---
+  22: 0: prepare
+  22: 0.1: create table
+  22: Table created with id = 0
+  22: 0.2: insert initial value
+  22: 6
+  22: 1: read txn: READ_UNCOMMITTED
+  22: 2: write txn: READ_UNCOMMITTED
+  22: 2.1: delete v1 = 2
+  22: 3
+  22: 2.2: X locks
+  22: 4: wait for result
+  22: 3: read txn read
+  22: 3.1: read values
+  22: terminate called after throwing an instance of 'bustub::TransactionAbortException'
+  22:   what():  std::exception
+*/
+TEST(LockManagerIsolationLevelTest, InsertTestC) {
+  // 0: prepare
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  lock_mgr.txn_manager_ = &txn_mgr;
+  lock_mgr.StartDeadlockDetection();
+
+  // 0.1: create table
+  table_oid_t toid{0};  // table created with id 0
+
+  // insert initial value
+  RID rid0{0, 0};
+  RID rid1{1, 1};
+  RID rid2{2, 2};
+  auto *txn0 = txn_mgr.Begin();
+  auto *txn1 = txn_mgr.Begin();
+
+  EXPECT_EQ(0, txn0->GetTransactionId());
+  EXPECT_EQ(1, txn1->GetTransactionId());
+
+  std::thread t0([&] {
+    // T0 first takes intention lock on table
+    bool res = lock_mgr.LockTable(txn0, LockManager::LockMode::INTENTION_EXCLUSIVE, toid);
+    EXPECT_EQ(true, res);
+
+    // Xlocks on rid0
+    res = lock_mgr.LockRow(txn0, LockManager::LockMode::EXCLUSIVE, toid, rid0);
+    EXPECT_EQ(true, res);
+    EXPECT_EQ(TransactionState::GROWING, txn1->GetState());
+
+    // sleeps to wait for T1 and T2 take their locks
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+
+    // lock on r1, which is currently locked by t2
+    res = lock_mgr.LockRow(txn0, LockManager::LockMode::EXCLUSIVE, toid, rid1);
+    EXPECT_EQ(true, res);
+
+    lock_mgr.UnlockRow(txn0, toid, rid1);
+    lock_mgr.UnlockRow(txn0, toid, rid0);
+    lock_mgr.UnlockTable(txn0, toid);
+
+    txn_mgr.Commit(txn0);
+    EXPECT_EQ(TransactionState::COMMITTED, txn0->GetState());
+  });
+
+  std::thread t1([&] {
+    // sleep so T0 can take necessary locks
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    // takes intention lock on table -> this should succeed
+    bool res = lock_mgr.LockTable(txn1, LockManager::LockMode::INTENTION_EXCLUSIVE, toid);
+    EXPECT_EQ(res, true);
+
+    // locks rid1, a different row on table
+    res = lock_mgr.LockRow(txn1, LockManager::LockMode::EXCLUSIVE, toid, rid1);
+    EXPECT_EQ(res, true);  // this too shall work
+    EXPECT_EQ(TransactionState::GROWING, txn1->GetState());
+
+    // sleep before it abors, so T2 can take necessary locks
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+
+    // lock on rid2, which is currently locked by T2
+    res = lock_mgr.LockRow(txn1, LockManager::LockMode::EXCLUSIVE, toid, rid2);
+    EXPECT_EQ(true, res);
+
+    txn_mgr.Abort(txn1);
+  });
+
+  // Sleep for enough time to break cycle
+  std::this_thread::sleep_for(cycle_detection_interval * 2);
+
+  t0.join();
+  t1.join();
+
+  delete txn0;
+  delete txn1;
+}
+
+// local tests
+
 void TableLockTest0() {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};

@@ -583,20 +583,31 @@ class LockManager {
    * @return false
    */
   auto HoldsAppropriateLockOnTable(txn_id_t txn_id, table_oid_t oid, LockMode row_lock_mode) -> bool {
-    std::scoped_lock<std::mutex> lock(table_lock_map_latch_);
+    std::unique_lock<std::mutex> table_lock(table_lock_map_latch_);
     auto lock_req_on_table = table_lock_map_.find(oid);
+
     // no lock on table
     if (lock_req_on_table == table_lock_map_.end()) {
+      table_lock.unlock();
       return false;
     }
+
+    // lock queue
     auto table_req_queue = lock_req_on_table->second;
+    std::unique_lock<std::mutex> queue_lock(table_req_queue->latch_);
+    table_lock.unlock();
     auto table_req_it = std::find_if(table_req_queue->request_queue_.begin(), table_req_queue->request_queue_.end(),
                                      [txn_id](auto &req) { return req->txn_id_ == txn_id && req->granted_; });
+
     // txn does not hold lock on table
     if (table_req_it == table_req_queue->request_queue_.end()) {
+      queue_lock.unlock();
       return false;
     }
-    return CheckAppropriateLockOnTable((*table_req_it)->lock_mode_, row_lock_mode);
+
+    auto table_lock_mode = (*table_req_it)->lock_mode_;
+    queue_lock.unlock();
+    return CheckAppropriateLockOnTable(table_lock_mode, row_lock_mode);
   }
 
   auto FindCycle(txn_id_t source_txn, std::vector<txn_id_t> &path, std::unordered_set<txn_id_t> &on_path,
