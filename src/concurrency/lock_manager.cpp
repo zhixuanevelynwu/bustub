@@ -499,6 +499,11 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
     return false;
   }
 
+  // sort waits_for_ graph in deterministic order
+  for (auto &vertex : waits_for_) {
+    std::sort(vertex.second.begin(), vertex.second.end(), [](const auto &a, const auto &b) { return a > b; });
+  }
+
   // sort vertices in deterministic order
   std::vector<txn_id_t> vertices;
   vertices.reserve(waits_for_.size());
@@ -604,15 +609,8 @@ void LockManager::RunCycleDetection() {
       }
       row_lock_map_latch_.unlock();
 
-      // sort edge lists in deterministic order
-      for (auto &vertex : waits_for_) {
-        std::sort(vertex.second.begin(), vertex.second.end());
-      }
-
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
-        // PrintGraph();
-        // std::cout << "cycle: " << youngest_txn_in_cycle << std::endl;
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn_manager_->Abort(txn);
