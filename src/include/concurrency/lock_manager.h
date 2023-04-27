@@ -419,13 +419,37 @@ class LockManager {
     lock_set->emplace(oid);
     txn->UnlockTxn();
   }
+
+  auto UpgradeRowLockSet(Transaction *txn, LockMode old_lock_mode, LockMode lock_mode, const table_oid_t &oid,
+                         const RID &rid) -> void {
+    txn->LockTxn();
+    // erase table from txn's original lock set
+    auto old_lock_set = GetRowLockSet(txn, old_lock_mode);
+    auto old_locked_rows = old_lock_set->find(oid);
+    if (old_locked_rows != old_lock_set->end()) {
+      old_locked_rows->second.erase(rid);
+      if (old_locked_rows->second.empty()) {
+        old_lock_set->erase(oid);
+      }
+    }
+
+    // add table to txn's new lock set
+    auto lock_set = GetRowLockSet(txn, lock_mode);
+    auto locked_rows = lock_set->find(oid);
+    if (locked_rows != lock_set->end()) {
+      locked_rows->second.emplace(rid);
+    } else {
+      lock_set->emplace(oid, std::unordered_set<RID>{rid});
+    }
+    txn->UnlockTxn();
+  }
   /** End Book Keeping Helpers */
 
   auto UpgradeLockTable(Transaction *txn, LockMode lock_mode, const table_oid_t &oid) -> bool;
 
   auto UpgradeLockRow(Transaction *txn, LockMode lock_mode, const table_oid_t &oid, const RID &rid) -> bool;
 
-  void GrantNewLocksIfPossible(LockRequestQueue *lock_request_queue) {}
+  void GrantNewLocksIfPossible(LockRequestQueue *req_queue);
 
   /**
    * @brief Checks if a transaction can take lock based on its isolation level and state
@@ -583,6 +607,7 @@ class LockManager {
    * @return false
    */
   auto HoldsAppropriateLockOnTable(txn_id_t txn_id, table_oid_t oid, LockMode row_lock_mode) -> bool {
+    // Change this to use txn sets
     std::unique_lock<std::mutex> table_lock(table_lock_map_latch_);
     auto lock_req_on_table = table_lock_map_.find(oid);
 
@@ -617,7 +642,7 @@ class LockManager {
   /** Graph API Helper */
 
   void PrintGraph() {
-    std::cout << "================ waits_for_graph ================" << std::endl;
+    std::cout << "================ start_waits_for_graph ================" << std::endl;
     std::cout << "size: " << waits_for_.size() << " " << std::endl;
     for (auto &pair : waits_for_) {
       std::cout << pair.first << " -> ";
@@ -626,7 +651,7 @@ class LockManager {
       }
       std::cout << std::endl;
     }
-    std::cout << "================ waits_for_graph ================" << std::endl;
+    std::cout << "================ end___waits_for_graph ================" << std::endl;
   }
 
   /** Structure that holds lock requests for a given table oid */

@@ -59,6 +59,85 @@ void CheckTableLockSizes(Transaction *txn, size_t s_size, size_t x_size, size_t 
   EXPECT_EQ(six_size, txn->GetSharedIntentionExclusiveTableLockSet()->size());
 }
 
+// 29: RowLockUpgradeTest1: single transaction, upgrade table lock then upgrade row lock,
+// upgraded_table_lock_mode=INTENTION_EXCLUSIVE
+void RowLockUpgradeTest1() {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+
+  table_oid_t oid = 0;
+  RID rid{0, 0};
+
+  int num_txns = 1;  // single transaction
+  std::vector<Transaction *> txns;
+  for (int i = 0; i < num_txns; i++) {
+    txns.push_back(txn_mgr.Begin());
+    EXPECT_EQ(i, txns[i]->GetTransactionId());
+  }
+
+  // upgrade table lock then upgrade row lock
+  auto task = [&](int txn_id) {
+    bool res;
+
+    res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::INTENTION_SHARED, oid);
+    EXPECT_TRUE(res);
+    CheckGrowing(txns[txn_id]);
+
+    res = lock_mgr.LockRow(txns[txn_id], LockManager::LockMode::SHARED, oid, rid);
+    EXPECT_TRUE(res);
+    CheckGrowing(txns[txn_id]);
+    /** Lock set should be updated */
+    ASSERT_EQ(true, txns[txn_id]->IsRowSharedLocked(oid, rid));
+    ASSERT_EQ(1, (*(txns[txn_id]->GetSharedRowLockSet()))[oid].size());
+    ASSERT_EQ(0, (*(txns[txn_id]->GetExclusiveRowLockSet()))[oid].size());
+
+    // upgrade table lock to intention exclusive
+    res = lock_mgr.LockTable(txns[txn_id], LockManager::LockMode::INTENTION_EXCLUSIVE, oid);
+    EXPECT_TRUE(res);
+    CheckGrowing(txns[txn_id]);
+    // table is now IX locked
+    ASSERT_EQ(true, txns[txn_id]->IsTableIntentionExclusiveLocked(oid));
+    ASSERT_EQ(false, txns[txn_id]->IsTableIntentionSharedLocked(oid));
+
+    // upgrade row to exclusive
+    res = lock_mgr.LockRow(txns[txn_id], LockManager::LockMode::EXCLUSIVE, oid, rid);
+    EXPECT_TRUE(res);
+    CheckGrowing(txns[txn_id]);
+    // row is now x locked
+    ASSERT_EQ(false, txns[txn_id]->IsRowSharedLocked(oid, rid));
+    ASSERT_EQ(true, txns[txn_id]->IsRowExclusiveLocked(oid, rid));
+    ASSERT_EQ(0, (*(txns[txn_id]->GetSharedRowLockSet()))[oid].size());
+    ASSERT_EQ(1, (*(txns[txn_id]->GetExclusiveRowLockSet()))[oid].size());
+
+    res = lock_mgr.UnlockRow(txns[txn_id], oid, rid);
+    EXPECT_TRUE(res);
+    CheckShrinking(txns[txn_id]);
+    /** Lock set should be updated */
+    ASSERT_EQ(false, txns[txn_id]->IsRowSharedLocked(oid, rid));
+    ASSERT_EQ(false, txns[txn_id]->IsRowExclusiveLocked(oid, rid));
+
+    res = lock_mgr.UnlockTable(txns[txn_id], oid);
+    EXPECT_TRUE(res);
+    CheckShrinking(txns[txn_id]);
+
+    txn_mgr.Commit(txns[txn_id]);
+    CheckCommitted(txns[txn_id]);
+  };
+
+  std::vector<std::thread> threads;
+  threads.reserve(num_txns);
+
+  for (int i = 0; i < num_txns; i++) {
+    threads.emplace_back(std::thread{task, i});
+  }
+
+  for (int i = 0; i < num_txns; i++) {
+    threads[i].join();
+    delete txns[i];
+  }
+}
+TEST(LockManagerTest, RowLockUpgradeTest1) { RowLockUpgradeTest1(); }  // NOLINT
+
 /*
   22: --- DeleteTestA.1 ---
   22: 0: prepare
@@ -77,7 +156,7 @@ void CheckTableLockSizes(Transaction *txn, size_t s_size, size_t x_size, size_t 
   22: terminate called after throwing an instance of 'bustub::TransactionAbortException'
   22:   what():  std::exception
 */
-TEST(LockManagerIsolationLevelTest, InsertTestC) {
+TEST(LockManagerIsolationLevelTest, DeleteTestC) {
   // 0: prepare
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};

@@ -48,41 +48,86 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   std::unique_lock<std::mutex> lock(req_queue->latch_);
   table_lock_map_latch_.unlock();
 
-  // iterate over each lock request on table
+  // find the previous lock request on this table
   auto txn_id = txn->GetTransactionId();
-  for (auto &req : req_queue->request_queue_) {
-    // if the transaction already holds a lock on the table, upgrade the lock to the specified lock_mode (if possible)
-    if (req->txn_id_ == txn_id) {
-      // requested lock mode is the same as that of the lock presently held
-      if (req->lock_mode_ == lock_mode) {
-        req->granted_ = true;  // grant lock
-        lock.unlock();
-        return true;
-      }
+  auto prev_req = std::find_if(req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
+                               [txn_id](const std::shared_ptr<bustub::LockManager::LockRequest> &current) {
+                                 return current->txn_id_ == txn_id;
+                               });
 
-      // only one transaction should be allowed to upgrade its lock on a given resource
-      if ((req->granted_ && !CanLockUpgrade(req->lock_mode_, lock_mode)) || req_queue->upgrading_ != INVALID_TXN_ID) {
-        lock.unlock();
-        txn->SetState(TransactionState::ABORTED);
-        throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
-        return false;
-      }
-
-      // finally, it is safe to upgrade it
-      req_queue->upgrading_ = txn_id;
-      UpgradeTableLockSet(txn, req->lock_mode_, lock_mode, oid);
-      req->lock_mode_ = lock_mode;
-      req_queue->upgrading_ = INVALID_TXN_ID;
-      req->granted_ = true;  // grant upgraded lock
-
+  // if exists, upgrade the request
+  if (prev_req != req_queue->request_queue_.end()) {
+    // requested lock mode is the same as that of the lock presently held
+    auto prev_lock_mode = (*prev_req)->lock_mode_;
+    if (prev_lock_mode == lock_mode) {
       lock.unlock();
       return true;
     }
+
+    // only one transaction should be allowed to upgrade its lock on a given resource
+    if (req_queue->upgrading_ != INVALID_TXN_ID) {
+      lock.unlock();
+      txn->SetState(TransactionState::ABORTED);
+      throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
+      return false;
+    }
+
+    // check upgrade compatibility
+    if (!CanLockUpgrade(prev_lock_mode, lock_mode)) {
+      lock.unlock();
+      txn->SetState(TransactionState::ABORTED);
+      throw TransactionAbortException(txn_id, AbortReason::INCOMPATIBLE_UPGRADE);
+      return false;
+    }
+
+    // upgrading txn has highest priority, move it before the first ungranted request in queue
+    req_queue->upgrading_ = txn_id;
+    req_queue->request_queue_.remove(*prev_req);
+
+    // find the first ungranted request
+    auto req_it = std::find_if(
+        req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
+        [](const std::shared_ptr<bustub::LockManager::LockRequest> &current) { return !current->granted_; });
+    auto upgrade_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid);
+
+    // insert upgrade request in front of the first ungranted
+    if (req_it != req_queue->request_queue_.end()) {
+      req_queue->request_queue_.insert(req_it, upgrade_req);
+    } else {
+      req_queue->request_queue_.push_back(upgrade_req);
+    }
+
+    // wait until all incompatible locks on the table are released
+    bool has_incompatible_lock = true;
+    while (has_incompatible_lock) {
+      // if txn is aborted while waiting, return false
+      if (txn->GetState() == TransactionState::ABORTED) {
+        req_queue->upgrading_ = INVALID_TXN_ID;
+        req_queue->request_queue_.remove(upgrade_req);
+        req_queue->cv_.notify_all();
+        return false;
+      }
+      has_incompatible_lock = false;
+      for (auto &req : req_queue->request_queue_) {
+        if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
+          // wait until the transaction holding the lock releases it
+          req_queue->cv_.wait(lock);
+          has_incompatible_lock = true;
+          break;
+        }
+      }
+    }
+
+    // finally, it is safe to upgrade it
+    upgrade_req->granted_ = true;
+    UpgradeTableLockSet(txn, prev_lock_mode, lock_mode, oid);
+    req_queue->upgrading_ = INVALID_TXN_ID;
+    lock.unlock();
+    return true;
   }
 
   // transaction is not in the queue
   auto new_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid);
-  // LockRequest new_req(txn_id, lock_mode, oid);
   req_queue->request_queue_.push_back(new_req);
 
   // wait until all incompatible locks on the table are released
@@ -90,9 +135,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
   while (has_incompatible_lock) {
     // if txn is aborted while waiting, return false
     if (txn->GetState() == TransactionState::ABORTED) {
-      req_queue->request_queue_.erase(
-          std::remove(req_queue->request_queue_.begin(), req_queue->request_queue_.end(), new_req),
-          req_queue->request_queue_.end());
+      req_queue->request_queue_.remove(new_req);
       req_queue->cv_.notify_all();
       return false;
     }
@@ -107,7 +150,8 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     }
   }
 
-  new_req->granted_ = true;  // grant lock
+  // grant lock
+  new_req->granted_ = true;
   AddToTableLockSet(txn, lock_mode, oid);
   lock.unlock();
   return true;
@@ -225,34 +269,78 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
   row_lock_map_latch_.unlock();
 
   // iterate over each lock request on row
-  for (auto &req : req_queue->request_queue_) {
-    // if the transaction already holds a lock on the row, upgrade the lock to the specified lock_mode (if possible)
-    if (req->txn_id_ == txn_id && req->rid_ == rid) {
-      // requested lock mode is the same as that of the lock presently held
-      if (req->lock_mode_ == lock_mode || CanLockUpgrade(lock_mode, req->lock_mode_)) {
-        req->granted_ = true;  // grant lock
-        lock.unlock();
-        return true;
-      }
-
-      // only one transaction should be allowed to upgrade its lock on a given resource
-      if ((req->granted_ && !CanLockUpgrade(req->lock_mode_, lock_mode)) || req_queue->upgrading_ != INVALID_TXN_ID) {
-        txn->SetState(TransactionState::ABORTED);
-        throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
-        lock.unlock();
-        return false;
-      }
-
-      // finally, it is safe to upgrade it
-      req_queue->upgrading_ = txn_id;
-      UpgradeTableLockSet(txn, req->lock_mode_, lock_mode, oid);
-      req->lock_mode_ = lock_mode;
-      req_queue->upgrading_ = INVALID_TXN_ID;
-      req->granted_ = true;  // grant upgraded lock
-
+  auto prev_req = std::find_if(req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
+                               [txn_id](const std::shared_ptr<bustub::LockManager::LockRequest> &current) {
+                                 return current->txn_id_ == txn_id;
+                               });
+  if (prev_req != req_queue->request_queue_.end()) {
+    // requested lock mode is the same as that of the lock presently held
+    auto prev_lock_mode = (*prev_req)->lock_mode_;
+    if (prev_lock_mode == lock_mode) {
       lock.unlock();
       return true;
     }
+
+    // only one transaction should be allowed to upgrade its lock on a given resource
+    if (req_queue->upgrading_ != INVALID_TXN_ID) {
+      lock.unlock();
+      txn->SetState(TransactionState::ABORTED);
+      throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
+      return false;
+    }
+
+    // check upgrade compatibility
+    if (!CanLockUpgrade(prev_lock_mode, lock_mode)) {
+      lock.unlock();
+      txn->SetState(TransactionState::ABORTED);
+      throw TransactionAbortException(txn_id, AbortReason::INCOMPATIBLE_UPGRADE);
+      return false;
+    }
+
+    // upgrading txn has highest priority, move it before the first ungranted request in queue
+    req_queue->upgrading_ = txn_id;
+    req_queue->request_queue_.remove(*prev_req);
+
+    // find the first ungranted request
+    auto req_it = std::find_if(
+        req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
+        [](const std::shared_ptr<bustub::LockManager::LockRequest> &current) { return !current->granted_; });
+    auto upgrade_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid, rid);
+
+    // insert upgrade request in front of the first ungranted
+    if (req_it != req_queue->request_queue_.end()) {
+      req_queue->request_queue_.insert(req_it, upgrade_req);
+    } else {
+      req_queue->request_queue_.push_back(upgrade_req);
+    }
+
+    // wait until all incompatible locks on the table are released
+    bool has_incompatible_lock = true;
+    while (has_incompatible_lock) {
+      // if txn is aborted while waiting, return false
+      if (txn->GetState() == TransactionState::ABORTED) {
+        req_queue->upgrading_ = INVALID_TXN_ID;
+        req_queue->request_queue_.remove(upgrade_req);
+        req_queue->cv_.notify_all();
+        return false;
+      }
+      has_incompatible_lock = false;
+      for (auto &req : req_queue->request_queue_) {
+        if (req->txn_id_ != txn_id && req->granted_ && !AreLocksCompatible(req->lock_mode_, lock_mode)) {
+          // wait until the transaction holding the lock releases it
+          req_queue->cv_.wait(lock);
+          has_incompatible_lock = true;
+          break;
+        }
+      }
+    }
+
+    // finally, it is safe to upgrade it
+    upgrade_req->granted_ = true;
+    UpgradeRowLockSet(txn, prev_lock_mode, lock_mode, oid, rid);
+    req_queue->upgrading_ = INVALID_TXN_ID;
+    lock.unlock();
+    return true;
   }
 
   // transaction is not in the queue
@@ -316,10 +404,11 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   std::unique_lock<std::mutex> lock(req_queue->latch_);
   row_lock_map_latch_.unlock();
 
-  // find request made by txn on the table
+  // find request made by txn on the row
   auto req_it =
-      std::find_if(req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
-                   [txn_id, rid](auto &req) { return req->txn_id_ == txn_id && req->granted_ && req->rid_ == rid; });
+      std::find_if(req_queue->request_queue_.begin(), req_queue->request_queue_.end(), [txn_id, oid, rid](auto &req) {
+        return req->txn_id_ == txn_id && req->granted_ && req->oid_ == oid && req->rid_ == rid;
+      });
   if (req_it == req_queue->request_queue_.end()) {
     lock.unlock();
     txn->SetState(TransactionState::ABORTED);
@@ -381,8 +470,8 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
       edges.emplace_back(t2);
     }
   }
-  // std::cout << "\nAdd Edge" << std::endl;
-  // PrintGraph();
+  std::cout << "\nAdd Edge" << std::endl;
+  PrintGraph();
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
@@ -393,10 +482,15 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
     auto to_remove = std::find(edges.begin(), edges.end(), t2);
     if (to_remove != edges.end()) {
       edges.erase(to_remove);
+
+      // if results in an isolated vertex, erase the entire vertex
+      if (edges.empty()) {
+        waits_for_.erase(t1);
+      }
     }
   }
-  // std::cout << "\nRemove Edge" << std::endl;
-  // PrintGraph();
+  std::cout << "\nRemove Edge" << std::endl;
+  PrintGraph();
 }
 
 void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
@@ -412,8 +506,13 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
       neighbors.erase(t2_it);
     }
   }
-  // std::cout << "\nRemove All Edges Containing " << t2 << std::endl;
-  // PrintGraph();
+
+  // if results in an isolated vertex, erase the entire vertex
+  for (auto &pair : waits_for_) {
+    if (pair.second.empty()) {
+      waits_for_.erase(pair.first);
+    }
+  }
 }
 
 /**
@@ -426,7 +525,6 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
-  // PrintGraph();
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;
@@ -438,6 +536,7 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
   for (auto &vertex : waits_for_) {
     vertices.emplace_back(vertex.first);
   }
+  // std::sort(vertices.begin(), vertices.end(), [](txn_id_t a, txn_id_t b) { return a > b; });
   std::sort(vertices.begin(), vertices.end());
   std::unordered_set<txn_id_t> visited;
 
@@ -448,14 +547,14 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
     }
 
     // initialize data structures
-    std::unordered_set<txn_id_t> ancestors;
+    std::deque<txn_id_t> ancestors;
     std::stack<txn_id_t> stack;
     stack.push(vertex);
 
     while (!stack.empty()) {
       auto current = stack.top();
       visited.insert(current);  // mark as visited
-      ancestors.insert(current);
+      ancestors.push_back(current);
       stack.pop();
 
       // visit each neighbor
@@ -468,10 +567,15 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
         // add unvisited neighbors to the stack
         if (visited.count(neighbor) == 0) {
           stack.push(neighbor);
-        } else if (ancestors.count(neighbor) > 0) {
-          // a cycle exsits if a neighbor is visited and is an ancestor of the current vertex
+        } else if (std::find(ancestors.begin(), ancestors.end(), neighbor) != ancestors.end()) {
+          // a cycle exsits if a neighbor is an ancestor of the current vertex
           auto youngest_txn_id = neighbor;
-          for (auto id : ancestors) {
+          while (!ancestors.empty()) {
+            auto id = ancestors.back();
+            if (id == neighbor) {
+              break;
+            }
+            ancestors.pop_back();
             youngest_txn_id = std::max(youngest_txn_id, id);
           }
           // write to txn_id
@@ -492,7 +596,6 @@ auto LockManager::GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>> {
       edges.emplace_back(t1, t2);
     }
   }
-
   return edges;
 }
 
@@ -540,9 +643,10 @@ void LockManager::RunCycleDetection() {
 
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
+        std::cout << youngest_txn_in_cycle << std::endl;
+        RemoveAllEdgesContaining(youngest_txn_in_cycle);
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn_manager_->Abort(txn);
-        RemoveAllEdgesContaining(youngest_txn_in_cycle);
       }
       waits_for_.clear();
     }
