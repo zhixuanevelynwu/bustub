@@ -364,6 +364,22 @@ class LockManager {
     txn->UnlockTxn();
   }
 
+  auto RemoveFromTableLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid) {
+    txn->LockTxn();
+    GetTableLockSet(txn, lock_mode)->erase(oid);
+    txn->UnlockTxn();
+  }
+
+  auto RemoveFromAllTableLockSets(Transaction *txn, table_oid_t oid) {
+    txn->LockTxn();
+    txn->GetSharedTableLockSet()->erase(oid);
+    txn->GetExclusiveTableLockSet()->erase(oid);
+    txn->GetIntentionSharedTableLockSet()->erase(oid);
+    txn->GetIntentionExclusiveTableLockSet()->erase(oid);
+    txn->GetSharedIntentionExclusiveTableLockSet()->erase(oid);
+    txn->UnlockTxn();
+  }
+
   auto AddToRowLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid, RID rid) -> void {
     txn->LockTxn();
     auto row_lock_set = GetRowLockSet(txn, lock_mode);
@@ -376,35 +392,22 @@ class LockManager {
     txn->UnlockTxn();
   }
 
-  auto RemoveFromTableLockSet(Transaction *txn, table_oid_t oid) {
+  auto RemoveFromRowLockSet(Transaction *txn, LockMode lock_mode, table_oid_t oid, RID rid) -> void {
     txn->LockTxn();
-    txn->GetSharedTableLockSet()->erase(oid);
-    txn->GetExclusiveTableLockSet()->erase(oid);
-    txn->GetIntentionSharedTableLockSet()->erase(oid);
-    txn->GetIntentionExclusiveTableLockSet()->erase(oid);
-    txn->GetSharedIntentionExclusiveTableLockSet()->erase(oid);
+    auto row_lock_set = GetRowLockSet(txn, lock_mode);
+    auto pair = row_lock_set->find(oid);
+    if (pair != row_lock_set->end()) {
+      pair->second.erase(rid);
+      if (pair->second.empty()) {
+        row_lock_set->erase(oid);
+      }
+    }
     txn->UnlockTxn();
   }
 
-  auto RemoveFromRowLockSet(Transaction *txn, table_oid_t oid, RID rid) {
-    txn->LockTxn();
-    auto row_slock_set = txn->GetSharedRowLockSet();
-    auto slocked_rows = row_slock_set->find(oid);
-    if (slocked_rows != row_slock_set->end()) {
-      slocked_rows->second.erase(rid);
-      if (slocked_rows->second.empty()) {
-        row_slock_set->erase(oid);
-      }
-    }
-    auto row_xlock_set = txn->GetExclusiveRowLockSet();
-    auto xlocked_rows = row_xlock_set->find(oid);
-    if (xlocked_rows != row_xlock_set->end()) {
-      xlocked_rows->second.erase(rid);
-      if (xlocked_rows->second.empty()) {
-        row_xlock_set->erase(oid);
-      }
-    }
-    txn->UnlockTxn();
+  auto RemoveFromAllRowLockSets(Transaction *txn, table_oid_t oid, RID rid) {
+    RemoveFromRowLockSet(txn, LockMode::SHARED, oid, rid);
+    RemoveFromRowLockSet(txn, LockMode::EXCLUSIVE, oid, rid);
   }
 
   auto UpgradeTableLockSet(Transaction *txn, LockMode old_lock_mode, LockMode lock_mode, const table_oid_t &oid)

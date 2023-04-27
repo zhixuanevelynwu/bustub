@@ -66,6 +66,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 
     // only one transaction should be allowed to upgrade its lock on a given resource
     if (req_queue->upgrading_ != INVALID_TXN_ID) {
+      std::cout << "abort txn " << txn_id << ": txn " << req_queue->upgrading_ << " is upgrading" << std::endl;
       lock.unlock();
       txn->SetState(TransactionState::ABORTED);
       throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
@@ -80,22 +81,13 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
       return false;
     }
 
-    // upgrading txn has highest priority, move it before the first ungranted request in queue
+    // upgrade lock
     req_queue->upgrading_ = txn_id;
-    req_queue->request_queue_.remove(*prev_req);
 
-    // find the first ungranted request
-    auto req_it = std::find_if(
-        req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
-        [](const std::shared_ptr<bustub::LockManager::LockRequest> &current) { return !current->granted_; });
-    auto upgrade_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid);
-
-    // insert upgrade request in front of the first ungranted
-    if (req_it != req_queue->request_queue_.end()) {
-      req_queue->request_queue_.insert(req_it, upgrade_req);
-    } else {
-      req_queue->request_queue_.push_back(upgrade_req);
-    }
+    // remove from the txn lock set
+    RemoveFromTableLockSet(txn, prev_lock_mode, oid);
+    (*prev_req)->lock_mode_ = lock_mode;
+    (*prev_req)->granted_ = false;
 
     // wait until all incompatible locks on the table are released
     bool has_incompatible_lock = true;
@@ -103,7 +95,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
       // if txn is aborted while waiting, return false
       if (txn->GetState() == TransactionState::ABORTED) {
         req_queue->upgrading_ = INVALID_TXN_ID;
-        req_queue->request_queue_.remove(upgrade_req);
+        req_queue->request_queue_.remove(*prev_req);
         req_queue->cv_.notify_all();
         return false;
       }
@@ -119,8 +111,8 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     }
 
     // finally, it is safe to upgrade it
-    upgrade_req->granted_ = true;
-    UpgradeTableLockSet(txn, prev_lock_mode, lock_mode, oid);
+    AddToTableLockSet(txn, lock_mode, oid);
+    (*prev_req)->granted_ = true;
     req_queue->upgrading_ = INVALID_TXN_ID;
     lock.unlock();
     return true;
@@ -224,8 +216,8 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
     }
   }
 
-  // unlock the row here
-  RemoveFromTableLockSet(txn, oid);
+  // unlock the table here
+  RemoveFromAllTableLockSets(txn, oid);
   req_queue->request_queue_.erase(req_it);
   req_queue->cv_.notify_all();  // notify waiting transactions
 
@@ -297,22 +289,13 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
       return false;
     }
 
-    // upgrading txn has highest priority, move it before the first ungranted request in queue
+    // upgrade lock
     req_queue->upgrading_ = txn_id;
-    req_queue->request_queue_.remove(*prev_req);
 
-    // find the first ungranted request
-    auto req_it = std::find_if(
-        req_queue->request_queue_.begin(), req_queue->request_queue_.end(),
-        [](const std::shared_ptr<bustub::LockManager::LockRequest> &current) { return !current->granted_; });
-    auto upgrade_req = std::make_shared<LockRequest>(txn_id, lock_mode, oid, rid);
-
-    // insert upgrade request in front of the first ungranted
-    if (req_it != req_queue->request_queue_.end()) {
-      req_queue->request_queue_.insert(req_it, upgrade_req);
-    } else {
-      req_queue->request_queue_.push_back(upgrade_req);
-    }
+    // remove from the txn lock set
+    RemoveFromRowLockSet(txn, prev_lock_mode, oid, rid);
+    (*prev_req)->lock_mode_ = lock_mode;
+    (*prev_req)->granted_ = false;
 
     // wait until all incompatible locks on the table are released
     bool has_incompatible_lock = true;
@@ -320,7 +303,7 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
       // if txn is aborted while waiting, return false
       if (txn->GetState() == TransactionState::ABORTED) {
         req_queue->upgrading_ = INVALID_TXN_ID;
-        req_queue->request_queue_.remove(upgrade_req);
+        req_queue->request_queue_.remove(*prev_req);
         req_queue->cv_.notify_all();
         return false;
       }
@@ -335,9 +318,9 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
       }
     }
 
-    // finally, it is safe to upgrade it
-    upgrade_req->granted_ = true;
-    UpgradeRowLockSet(txn, prev_lock_mode, lock_mode, oid, rid);
+    // add back to the txn lock set
+    AddToRowLockSet(txn, lock_mode, oid, rid);
+    (*prev_req)->granted_ = true;
     req_queue->upgrading_ = INVALID_TXN_ID;
     lock.unlock();
     return true;
@@ -439,7 +422,7 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   }
 
   // unlock the row here
-  RemoveFromRowLockSet(txn, oid, rid);
+  RemoveFromAllRowLockSets(txn, oid, rid);
   req_queue->request_queue_.erase(req_it);
   req_queue->cv_.notify_all();  // notify waiting transactions
 
@@ -470,8 +453,6 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
       edges.emplace_back(t2);
     }
   }
-  std::cout << "\nAdd Edge" << std::endl;
-  PrintGraph();
 }
 
 void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
@@ -489,8 +470,6 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
       }
     }
   }
-  std::cout << "\nRemove Edge" << std::endl;
-  PrintGraph();
 }
 
 void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
@@ -525,6 +504,7 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
+  PrintGraph();
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;

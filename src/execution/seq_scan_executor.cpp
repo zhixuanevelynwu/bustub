@@ -65,12 +65,21 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
 
     // tuple deleted -> force unlock
     if (m.is_deleted_) {
-      lock_mgr->UnlockRow(txn, oid, r, true);
+      // if not delete op, READ_UNCOMMITED does not need to be unlocked
+      if (!exec_ctx_->IsDelete() && isolation != IsolationLevel::READ_UNCOMMITTED) {
+        lock_mgr->UnlockRow(txn, oid, r, true);
+      }
+
+      // if is delete op, all isolation level are locked
+      if (exec_ctx_->IsDelete()) {
+        lock_mgr->UnlockRow(txn, oid, r, true);
+      }
     } else {
-      // release lock immediately for READ_UNCOMMITED
-      if (isolation == IsolationLevel::READ_COMMITTED && !exec_ctx_->IsDelete()) {
+      // release S lock immediately for READ_COMMITED
+      if (!exec_ctx_->IsDelete() && isolation == IsolationLevel::READ_COMMITTED) {
         lock_mgr->UnlockRow(txn, oid, r);
       }
+
       // write tuple to output
       *tuple = t;
       *rid = r;
