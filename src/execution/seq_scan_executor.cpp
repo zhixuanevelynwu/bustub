@@ -27,11 +27,22 @@ void SeqScanExecutor::Init() {
   auto oid = plan_->GetTableOid();
 
   // lock table accordingly
-  if (exec_ctx_->IsDelete()) {  // delete operation -> IX lock the entire table
+  if (exec_ctx_->IsDelete()) {
+    // before locking the table, check if a higher-level lock is held (X, SIX)
+    if (txn->IsTableExclusiveLocked(oid) || txn->IsTableSharedIntentionExclusiveLocked(oid)) {
+      return;
+    }
+    // delete operation -> IX lock the entire table
     if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, oid)) {
       throw ExecutionException("seqscan <delete>: failed acquiring IX lock on table");
     }
-  } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {  // otherwise, IS unless READ_UNCOMMITED
+  } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {
+    // before locking the table, check if a higher-level lock is held (S, X, IX, SIX)
+    if (txn->IsTableSharedLocked(oid) || txn->IsTableExclusiveLocked(oid) ||
+        txn->IsTableIntentionExclusiveLocked(oid) || txn->IsTableSharedIntentionExclusiveLocked(oid)) {
+      return;
+    }
+    // IS lock the entire table
     if (!lock_mgr->LockTable(txn, LockManager::LockMode::INTENTION_SHARED, oid)) {
       throw ExecutionException("seqscan: failed acquiring IS lock on table");
     }
@@ -52,10 +63,12 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     if (exec_ctx_->IsDelete()) {  // take X lock if current op is delete
       if (!lock_mgr->LockRow(txn, LockManager::LockMode::EXCLUSIVE, oid, r)) {
         throw ExecutionException("seqscan <delete>: failed acquiring X lock");
+        return false;
       }
     } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {  // Slock the tuple except for READ_UNCOMMIT
       if (!lock_mgr->LockRow(txn, LockManager::LockMode::SHARED, oid, r)) {
         throw ExecutionException("seqscan: failed acquiring S lock");
+        return false;
       }
     }
 

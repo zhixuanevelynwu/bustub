@@ -39,6 +39,7 @@ void UpdateExecutor::Init() { child_executor_->Init(); }
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   if (!updated_) {
     updated_ = true;
+    auto txn_id = exec_ctx_->GetTransaction()->GetTransactionId();
     auto catalog = exec_ctx_->GetCatalog();
     auto table_meta = catalog->GetTable(plan_->TableOid());
     auto indexes = catalog->GetTableIndexes(table_meta->name_);
@@ -47,13 +48,15 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     int count = 0;
     Tuple t;
     RID r;
+    const TupleMeta new_meta{txn_id, INVALID_TXN_ID, false};
     while (child_executor_->Next(&t, &r)) {
       // First remove the tuple from the table
-      const TupleMeta old_meta{INVALID_TXN_ID, INVALID_TXN_ID, true};
+      auto old_meta = table_meta->table_->GetTupleMeta(r);
+      old_meta.delete_txn_id_ = txn_id;
+      old_meta.is_deleted_ = true;
       table_meta->table_->UpdateTupleMeta(old_meta, r);
 
       // Then insert the new tuple into the table
-      const TupleMeta new_meta{INVALID_TXN_ID, INVALID_TXN_ID, false};
       std::vector<Value> vec;
       vec.reserve(table_meta->schema_.GetColumns().size());
       for (const auto &expr : plan_->target_expressions_) {

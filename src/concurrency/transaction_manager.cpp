@@ -33,7 +33,7 @@ void TransactionManager::Abort(Transaction *txn) {
   // revert insertion and deletions
   auto table_write_set = txn->GetWriteSet();
   while (!table_write_set->empty()) {
-    auto record = table_write_set->back();
+    auto record = table_write_set->back(); 
     auto table_heap = record.table_heap_;
     auto [m, t] = record.table_heap_->GetTuple(record.rid_);
     table_heap->UpdateTupleMeta(m, record.rid_);

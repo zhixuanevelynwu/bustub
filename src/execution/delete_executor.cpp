@@ -29,6 +29,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
 
     // store info as needed
     auto txn = exec_ctx_->GetTransaction();
+    auto txn_id = txn->GetTransactionId();
     auto oid = plan_->TableOid();
     auto catalog = exec_ctx_->GetCatalog();
     auto table_meta = catalog->GetTable(oid);
@@ -39,15 +40,15 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     Tuple t;
     RID r;
     while (child_executor_->Next(&t, &r)) {
-      // record table before deletion
-      auto table_heap = table_meta->table_.get();
-
-      table_meta->table_->UpdateTupleMeta({INVALID_TXN_ID, INVALID_TXN_ID, true}, r);
+      auto tuple_meta = table_meta->table_->GetTupleMeta(r);
+      tuple_meta.delete_txn_id_ = txn_id;
+      tuple_meta.is_deleted_ = true;
+      table_meta->table_->UpdateTupleMeta(tuple_meta, r);
 
       // maintain write record
-      txn->AppendTableWriteRecord({oid, r, table_heap});
+      txn->AppendTableWriteRecord({oid, r, table_meta->table_.get()});
 
-      // Update indexes (if any)
+      // update indexes (if any)
       for (auto index_meta : indexes) {
         auto key = t.KeyFromTuple(table_meta->schema_, index_meta->key_schema_, index_meta->index_->GetKeyAttrs());
         index_meta->index_->DeleteEntry(key, r, nullptr);

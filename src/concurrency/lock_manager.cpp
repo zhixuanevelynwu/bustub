@@ -504,7 +504,7 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
-  PrintGraph();
+  // PrintGraph();
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;
@@ -623,7 +623,7 @@ void LockManager::RunCycleDetection() {
 
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
-        std::cout << youngest_txn_in_cycle << std::endl;
+        // std::cout << youngest_txn_in_cycle << std::endl;
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn_manager_->Abort(txn);
