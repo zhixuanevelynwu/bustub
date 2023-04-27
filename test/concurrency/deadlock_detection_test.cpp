@@ -12,6 +12,22 @@
 #include "gtest/gtest.h"
 
 namespace bustub {
+TEST(LockManagerDeadLockDetectionTest, DISABLED_CycleTraverseOrderTest) {
+  LockManager lock_mgr{};
+  TransactionManager txn_mgr{&lock_mgr};
+  lock_mgr.txn_manager_ = &txn_mgr;
+  lock_mgr.StartDeadlockDetection();
+
+  lock_mgr.AddEdge(0, 1);
+  lock_mgr.AddEdge(1, 2);
+  lock_mgr.AddEdge(2, 3);
+  lock_mgr.AddEdge(3, 0);
+  lock_mgr.AddEdge(3, 2);
+
+  // Create edges by pairing adjacent txn_ids
+  auto lock_mgr_edges = lock_mgr.GetEdgeList();
+}
+
 TEST(LockManagerDeadlockDetectionTest, DISABLED_CycleDetectionTest) {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};

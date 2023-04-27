@@ -66,7 +66,7 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         return false;
       }
     } else if (isolation != IsolationLevel::READ_UNCOMMITTED) {  // Slock the tuple except for READ_UNCOMMIT
-      if (!lock_mgr->LockRow(txn, LockManager::LockMode::SHARED, oid, r)) {
+      if (!txn->IsRowExclusiveLocked(oid, r) && !lock_mgr->LockRow(txn, LockManager::LockMode::SHARED, oid, r)) {
         throw ExecutionException("seqscan: failed acquiring S lock");
         return false;
       }

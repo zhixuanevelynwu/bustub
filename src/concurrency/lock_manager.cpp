@@ -66,7 +66,6 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 
     // only one transaction should be allowed to upgrade its lock on a given resource
     if (req_queue->upgrading_ != INVALID_TXN_ID) {
-      std::cout << "abort txn " << txn_id << ": txn " << req_queue->upgrading_ << " is upgrading" << std::endl;
       lock.unlock();
       txn->SetState(TransactionState::ABORTED);
       throw TransactionAbortException(txn_id, AbortReason::UPGRADE_CONFLICT);
@@ -87,7 +86,6 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     // remove from the txn lock set
     RemoveFromTableLockSet(txn, prev_lock_mode, oid);
     (*prev_req)->lock_mode_ = lock_mode;
-    (*prev_req)->granted_ = false;
 
     // wait until all incompatible locks on the table are released
     bool has_incompatible_lock = true;
@@ -112,7 +110,6 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 
     // finally, it is safe to upgrade it
     AddToTableLockSet(txn, lock_mode, oid);
-    (*prev_req)->granted_ = true;
     req_queue->upgrading_ = INVALID_TXN_ID;
     lock.unlock();
     return true;
@@ -295,7 +292,6 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
     // remove from the txn lock set
     RemoveFromRowLockSet(txn, prev_lock_mode, oid, rid);
     (*prev_req)->lock_mode_ = lock_mode;
-    (*prev_req)->granted_ = false;
 
     // wait until all incompatible locks on the table are released
     bool has_incompatible_lock = true;
@@ -320,7 +316,6 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
 
     // add back to the txn lock set
     AddToRowLockSet(txn, lock_mode, oid, rid);
-    (*prev_req)->granted_ = true;
     req_queue->upgrading_ = INVALID_TXN_ID;
     lock.unlock();
     return true;
@@ -448,9 +443,8 @@ void LockManager::AddEdge(txn_id_t t1, txn_id_t t2) {
     waits_for_.emplace(t1, std::vector<txn_id_t>(1, t2));
   } else {
     // add edge if it is not in graph
-    auto edges = waits_for_txn->second;
-    if (std::find(edges.begin(), edges.end(), t2) == edges.end()) {
-      edges.emplace_back(t2);
+    if (std::find(waits_for_txn->second.begin(), waits_for_txn->second.end(), t2) == waits_for_txn->second.end()) {
+      waits_for_txn->second.emplace_back(t2);
     }
   }
 }
@@ -459,15 +453,12 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
   auto waits_for_txn = waits_for_.find(t1);
   // remove edge if it is in graph
   if (waits_for_txn != waits_for_.end()) {
-    auto edges = waits_for_txn->second;
-    auto to_remove = std::find(edges.begin(), edges.end(), t2);
-    if (to_remove != edges.end()) {
-      edges.erase(to_remove);
+    waits_for_txn->second.erase(std::remove(waits_for_txn->second.begin(), waits_for_txn->second.end(), t2),
+                                waits_for_txn->second.end());
 
-      // if results in an isolated vertex, erase the entire vertex
-      if (edges.empty()) {
-        waits_for_.erase(t1);
-      }
+    // if results in an isolated vertex, erase the entire vertex
+    if (waits_for_txn->second.empty()) {
+      waits_for_.erase(t1);
     }
   }
 }
@@ -475,22 +466,21 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
 void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
   // remove vertex t2
   waits_for_.erase(t2);
-  for (auto &pair : waits_for_) {
-    // for each vertex, find its connection to t2
-    auto neighbors = pair.second;
-    auto t2_it = std::find(neighbors.begin(), neighbors.end(), t2);
 
-    // if exists, remove it
-    if (t2_it != neighbors.end()) {
-      neighbors.erase(t2_it);
+  // stores all vertices that are isolated after removing t2
+  std::vector<txn_id_t> to_remove;
+
+  // for each vertex, find and remove its connection to t2
+  for (auto &pair : waits_for_) {
+    pair.second.erase(std::remove(pair.second.begin(), pair.second.end(), t2), pair.second.end());
+    if (pair.second.empty()) {
+      to_remove.emplace_back(pair.first);
     }
   }
 
   // if results in an isolated vertex, erase the entire vertex
-  for (auto &pair : waits_for_) {
-    if (pair.second.empty()) {
-      waits_for_.erase(pair.first);
-    }
+  for (auto &txn_id : to_remove) {
+    waits_for_.erase(txn_id);
   }
 }
 
@@ -504,7 +494,6 @@ void LockManager::RemoveAllEdgesContaining(txn_id_t t2) {
  * @return false
  */
 auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
-  // PrintGraph();
   // do nothing if the graph is empty
   if (waits_for_.empty()) {
     return false;
@@ -516,7 +505,6 @@ auto LockManager::HasCycle(txn_id_t *txn_id) -> bool {
   for (auto &vertex : waits_for_) {
     vertices.emplace_back(vertex.first);
   }
-  // std::sort(vertices.begin(), vertices.end(), [](txn_id_t a, txn_id_t b) { return a > b; });
   std::sort(vertices.begin(), vertices.end());
   std::unordered_set<txn_id_t> visited;
 
@@ -623,7 +611,8 @@ void LockManager::RunCycleDetection() {
 
       txn_id_t youngest_txn_in_cycle;
       while (HasCycle(&youngest_txn_in_cycle)) {
-        // std::cout << youngest_txn_in_cycle << std::endl;
+        // PrintGraph();
+        // std::cout << "cycle: " << youngest_txn_in_cycle << std::endl;
         RemoveAllEdgesContaining(youngest_txn_in_cycle);
         auto txn = txn_manager_->GetTransaction(youngest_txn_in_cycle);
         txn_manager_->Abort(txn);
