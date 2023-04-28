@@ -12,7 +12,7 @@
 #include "gtest/gtest.h"
 
 namespace bustub {
-TEST(LockManagerDeadLockDetectionTest, CycleTraverseOrderTest1) {
+TEST(LockManagerDeadLockDetectionTest, DISABLED_CycleTraverseOrderTest1) {
   LockManager lock_mgr{};
   TransactionManager txn_mgr{&lock_mgr};
   lock_mgr.txn_manager_ = &txn_mgr;

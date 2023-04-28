@@ -84,7 +84,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     req_queue->upgrading_ = txn_id;
 
     // remove from the txn lock set
-    RemoveFromTableLockSet(txn, prev_lock_mode, oid);
+    GetTableLockSet(txn, prev_lock_mode)->erase(oid);
     (*prev_req)->lock_mode_ = lock_mode;
 
     // wait until all incompatible locks on the table are released
@@ -109,7 +109,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
     }
 
     // finally, it is safe to upgrade it
-    AddToTableLockSet(txn, lock_mode, oid);
+    GetTableLockSet(txn, lock_mode)->emplace(oid);
     req_queue->upgrading_ = INVALID_TXN_ID;
     lock.unlock();
     return true;
@@ -141,7 +141,7 @@ auto LockManager::LockTable(Transaction *txn, LockMode lock_mode, const table_oi
 
   // grant lock
   new_req->granted_ = true;
-  AddToTableLockSet(txn, lock_mode, oid);
+  GetTableLockSet(txn, lock_mode)->emplace(oid);
   lock.unlock();
   return true;
 }
@@ -214,7 +214,7 @@ auto LockManager::UnlockTable(Transaction *txn, const table_oid_t &oid) -> bool 
   }
 
   // unlock the table here
-  RemoveFromAllTableLockSets(txn, oid);
+  GetTableLockSet(txn, lock_mode)->erase(oid);
   req_queue->request_queue_.erase(req_it);
   req_queue->cv_.notify_all();  // notify waiting transactions
 
@@ -240,10 +240,31 @@ auto LockManager::LockRow(Transaction *txn, LockMode lock_mode, const table_oid_
 
   // ensure txn has valid lock on table
   auto txn_id = txn->GetTransactionId();
-  if (!HoldsAppropriateLockOnTable(txn_id, oid, lock_mode)) {
-    txn->SetState(TransactionState::ABORTED);
-    throw TransactionAbortException(txn_id, AbortReason::TABLE_LOCK_NOT_PRESENT);
-    return false;
+  switch (lock_mode) {
+    case LockMode::SHARED:
+      if (!txn->IsTableExclusiveLocked(oid) && !txn->IsTableSharedLocked(oid) &&
+          !txn->IsTableIntentionExclusiveLocked(oid) && !txn->IsTableIntentionSharedLocked(oid) &&
+          !txn->IsTableSharedIntentionExclusiveLocked(oid)) {
+        txn->SetState(TransactionState::ABORTED);
+        throw TransactionAbortException(txn_id, AbortReason::TABLE_LOCK_NOT_PRESENT);
+        return false;
+      }
+      break;
+    case LockMode::EXCLUSIVE:
+      if (!txn->IsTableExclusiveLocked(oid) && !txn->IsTableIntentionExclusiveLocked(oid) &&
+          !txn->IsTableSharedIntentionExclusiveLocked(oid)) {
+        txn->SetState(TransactionState::ABORTED);
+        throw TransactionAbortException(txn_id, AbortReason::TABLE_LOCK_NOT_PRESENT);
+        return false;
+      }
+      break;
+    // can only S / X lock a row
+    case LockMode::INTENTION_SHARED:
+    case LockMode::INTENTION_EXCLUSIVE:
+    case LockMode::SHARED_INTENTION_EXCLUSIVE:
+      txn->SetState(TransactionState::ABORTED);
+      throw TransactionAbortException(txn_id, AbortReason::ATTEMPTED_INTENTION_LOCK_ON_ROW);
+      return false;
   }
 
   // find the lock request queue for the row (create one if not exist)
@@ -395,8 +416,8 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   }
 
   // unlocking S/X lock change the transaction state
+  auto lock_mode = (*req_it)->lock_mode_;
   if (!force) {  // ignore for force unlock
-    auto lock_mode = (*req_it)->lock_mode_;
     if (lock_mode == LockMode::SHARED || lock_mode == LockMode::EXCLUSIVE) {
       switch (txn->GetIsolationLevel()) {
         case IsolationLevel::REPEATABLE_READ:
@@ -417,7 +438,7 @@ auto LockManager::UnlockRow(Transaction *txn, const table_oid_t &oid, const RID 
   }
 
   // unlock the row here
-  RemoveFromAllRowLockSets(txn, oid, rid);
+  RemoveFromRowLockSet(txn, lock_mode, oid, rid);
   req_queue->request_queue_.erase(req_it);
   req_queue->cv_.notify_all();  // notify waiting transactions
 
